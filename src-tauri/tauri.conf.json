@@ -10,9 +10,9 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "terrors-miner",
-        "width": 800,
-        "height": 600
+        "title": "Terrors-Miner",
+        "width": 400,
+        "height": 300
       }
     ],
     "security": {

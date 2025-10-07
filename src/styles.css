@@ -2,24 +2,165 @@
   filter: drop-shadow(0 0 2em #ffe21c);
 }
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  --font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-size: 14px;
+  --line-height: 1.4;
+  --font-weight: 400;
+  --color-light: #f6f6f6;
+  --color-dark: #2f2f2f;
+  --color-darker: #0f0f0f;
+  --color-hover: #1c1c1c;
+  --color-active: #333;
+  --color-white: white;
+  --color-black: black;
+  --gap-small: 4px;
+  --padding-small: 4px;
+  --padding-medium: 6px;
+  --button-height: 28px;
+  --border-radius: 0px;
+}
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  font-weight: var(--font-weight);
+  color: var(--color-light);
+  background-color: var(--color-dark);
 }
 
 .container {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-small);
+  padding: var(--padding-small);
+}
+
+.top-bar,
+.bottom-bar {
+  display: flex;
+  gap: var(--gap-small);
+  width: 100%;
+  align-items: center;
+}
+
+input,
+button {
+  font-family: inherit;
+  font-size: var(--font-size);
+  outline: none;
+  box-shadow: none;
+  border: none;
+  border-radius: var(--border-radius);
+}
+
+#item-input,
+#add-button,
+#clear-button {
+  height: var(--button-height);
+  padding: 2px var(--padding-medium);
+  background-color: var(--color-darker);
+  color: var(--color-white);
+  cursor: pointer;
+}
+
+#item-input {
+  flex: 3;
+}
+
+#add-button,
+#clear-button {
+  flex: 1;
+}
+
+#add-button:hover,
+#clear-button:hover {
+  background-color: var(--color-hover);
+}
+
+#add-button:active,
+#clear-button:active {
+  background-color: var(--color-active);
+}
+
+.scrollable-list {
+  flex: 1;
+  background-color: var(--color-white);
+  color: var(--color-black);
+  padding: var(--padding-medium);
+  font-size: var(--font-size);
+  overflow-y: scroll; /* always show scrollbar */
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-small);
+  border-radius: var(--border-radius);
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 2px solid var(--color-black);
+  padding: var(--padding-medium);
+  background-color: var(--color-white);
+  min-width: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border-radius: var(--border-radius);
+}
+
+.list-item:hover {
+  transform: translateY(-1px);
+  background-color: #f0f0f0;
+}
+
+.list-item-content {
+  flex: 1;
+  word-break: break-word;
+}
+
+.list-item-number {
+  font-weight: bold;
+  margin-right: var(--padding-medium);
+  color: var(--color-darker);
+  min-width: 30px;
+}
+
+.delete-button {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  padding: 2px 6px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: var(--padding-medium);
+}
+
+.delete-button:hover {
+  background-color: #cc3333;
+}
+
+#item-count {
+  font-size: 12px;
+  color: var(--color-light);
+  margin-left: auto;
+}
+.app-center {
   margin: 0;
-  padding-top: 10vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -58,7 +199,7 @@ h1 {
 
 input,
 button {
-  border-radius: 8px;
+  border-radius: 0px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
