@@ -48,13 +48,58 @@ html, body {
   padding: var(--padding-small);
 }
 
-.top-bar,
-.bottom-bar {
+.main-content {
   display: flex;
+  height: 100%;
   gap: var(--gap-small);
-  width: 100%;
-  align-items: center;
 }
+
+.list-section {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Log UI removed; console logging will be used instead */
+
+.list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--padding-medium);
+  background-color: var(--color-darker);
+  border-radius: var(--border-radius);
+  margin-top: var(--gap-small);
+}
+
+.add-button {
+  height: var(--button-height);
+  padding: 2px var(--padding-medium);
+  background-color: var(--color-hover);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--font-size);
+}
+
+.add-button:hover {
+  background-color: var(--color-active);
+}
+
+.add-button:active {
+  background-color: var(--color-light);
+  color: var(--color-dark);
+}
+
+.item-count {
+  font-size: 12px;
+  color: var(--color-light);
+  font-weight: bold;
+}
+
+/* Removed top-bar and bottom-bar styles as they are no longer needed */
 
 input,
 button {
@@ -66,34 +111,7 @@ button {
   border-radius: var(--border-radius);
 }
 
-#item-input,
-#add-button,
-#clear-button {
-  height: var(--button-height);
-  padding: 2px var(--padding-medium);
-  background-color: var(--color-darker);
-  color: var(--color-white);
-  cursor: pointer;
-}
-
-#item-input {
-  flex: 3;
-}
-
-#add-button,
-#clear-button {
-  flex: 1;
-}
-
-#add-button:hover,
-#clear-button:hover {
-  background-color: var(--color-hover);
-}
-
-#add-button:active,
-#clear-button:active {
-  background-color: var(--color-active);
-}
+/* Removed input and button styles as they are no longer needed */
 
 .scrollable-list {
   flex: 1;
@@ -130,6 +148,92 @@ button {
 .list-item-content {
   flex: 1;
   word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.instance-name {
+  font-weight: bold;
+  font-size: var(--font-size);
+}
+
+.instance-status {
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.status-running {
+  color: #4CAF50; /* 緑色 - 実行中 */
+}
+
+.status-launching {
+  color: #FFA500; /* オレンジ色 - 起動中 */
+}
+
+.status-stopped {
+  color: #9E9E9E; /* グレー - 停止中 */
+}
+
+.instance-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.toggle-button {
+  height: var(--button-height);
+  /* Fixed size to avoid changing layout when label changes */
+  width: 90px;
+  padding: 2px 8px;
+  background-color: var(--color-hover);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--font-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toggle-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.open-button,
+.close-button {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 11px;
+  min-width: 45px;
+}
+
+.open-button:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.close-button {
+  background-color: #FF5722;
+}
+
+.close-button:hover:not(:disabled) {
+  background-color: #D84315;
+}
+
+.open-button:disabled,
+.close-button:disabled {
+  background-color: #BDBDBD;
+  cursor: not-allowed;
 }
 
 .list-item-number {
@@ -148,17 +252,19 @@ button {
   cursor: pointer;
   font-size: 12px;
   margin-left: var(--padding-medium);
+  /* fixed size for delete button for visual consistency */
+  width: 34px;
+  height: var(--button-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .delete-button:hover {
   background-color: #cc3333;
 }
 
-#item-count {
-  font-size: 12px;
-  color: var(--color-light);
-  margin-left: auto;
-}
+/* Removed item-count styles as it's no longer needed */
 .app-center {
   margin: 0;
   display: flex;
