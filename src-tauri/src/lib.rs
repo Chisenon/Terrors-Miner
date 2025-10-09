@@ -445,7 +445,8 @@ pub fn run() {
             stop_vrchat,
             get_running_vrchat,
             debug_vrchat_processes,
-            is_eac_launcher_running
+            is_eac_launcher_running,
+            create_sub_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -465,4 +466,20 @@ fn is_eac_launcher_running() -> Result<bool, String> {
         }
     }
     Ok(false)
+}
+
+// サブウィンドウ (設定) を生成する非同期コマンド
+#[tauri::command]
+async fn create_sub_window(app: tauri::AppHandle) -> Result<(), String> {
+    // Label must be unique; use a fixed label for a single settings window
+    let label = "Mining_Setting";
+    // Build the webview window that loads 'mining_setting.html' from the app
+    match tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App("mining_setting.html".into()))
+        .title("Mining Setting")
+        .inner_size(600.0, 400.0)
+        .build()
+    {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("サブウィンドウの作成に失敗しました: {}", e)),
+    }
 }

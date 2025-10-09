@@ -100,6 +100,7 @@ function createListItem(instance, index) {
       <div class="instance-status ${statusClass}">${statusText}${pidText}</div>
     </span>
     <div class="instance-controls">
+      <button class="setting-button" onclick="openSetting(${index})" title="Setting">Setting</button>
       <button class="toggle-button" onclick="toggleInstance(${index})" ${btnDisabled ? 'disabled' : ''} title="${btnTitle}">${btnLabel}</button>
       <button class="delete-button" onclick="removeInstance(${index})">×</button>
     </div>
@@ -204,6 +205,16 @@ async function closeVRChat(index) {
   }
 }
 
+// Open the Mining Setting sub-window via Tauri command
+async function openSetting(index) {
+  try {
+    await tauriInvoke('create_sub_window');
+    addLogEntry(`Setting ウィンドウを開きました (Profile ${vrchatInstances[index].profile})`);
+  } catch (error) {
+    addLogEntry(`Setting ウィンドウの作成に失敗: ${error}`);
+  }
+}
+
 function renderList() {
   itemList.innerHTML = '';
   vrchatInstances.forEach((instance, index) => {
@@ -215,6 +226,7 @@ function renderList() {
 // グローバル関数（onclick用）
 window.removeInstance = removeInstance;
 window.toggleInstance = toggleInstance;
+window.openSetting = openSetting;
 
 // 実行中のVRChatプロセス状態をチェック（簡素化）
 async function checkRunningProcesses() {

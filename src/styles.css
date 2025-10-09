@@ -181,6 +181,22 @@ button {
   align-items: center;
 }
 
+.setting-button {
+  height: var(--button-height);
+  width: 64px;
+  padding: 2px 6px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.setting-button:hover { background-color: #5a6268; }
+
 .toggle-button {
   height: var(--button-height);
   /* Fixed size to avoid changing layout when label changes */
