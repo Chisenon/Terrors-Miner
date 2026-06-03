@@ -385,7 +385,7 @@ async fn create_sub_window(app: tauri::AppHandle) -> Result<(), String> {
     let label = "Mining_Setting";
     match tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App("mining_setting.html".into()))
         .title("Mining Setting")
-        .inner_size(300.0, 400.0)
+        .inner_size(600.0, 400.0)
         .build()
     {
         Ok(_) => Ok(()),

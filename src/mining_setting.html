@@ -139,13 +139,25 @@
         margin: 0;
         padding: 0;
       }
+
+      #content-area .banned label {
+        text-decoration: line-through;
+        color: #555;
+      }
+
+      #content-area .banned input[type="checkbox"] {
+        opacity: 0.35;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="main-content">
         <div class="list-section">
-          <div class="section-title">Select Round Types And Terrors</div>
+          <div class="section-title">
+            Select Round Types And Terrors
+            <button id="import-btn" style="float:right;font-size:11px;padding:2px 8px;cursor:pointer;background:#5a7f85;color:#fff;border:none;">Import</button>
+          </div>
           <div id="tab-bar">Loading...</div>
           <div id="content-area">Select a round type to view details</div>
         </div>
@@ -155,7 +167,11 @@
     <script>
       let roundTypes = [];
       let terrorsData = [];
+      let roundTerrors = [];
+      let variantsData = [];
+      let terrorRoundsMap = {};
       let activeTab = null;
+      let importData = null; // { terrorName: { roundId_str: bool } }
 
       async function loadRoundTypes() {
         try {
@@ -169,6 +185,7 @@
           // Note: names are matched case-insensitively against Roundtype.json entries.
           const desiredOrder = [
             'Classic',
+            'Alternate',
             '8 Pages',
             'Fog',
             'Ghost',
@@ -199,6 +216,7 @@
               tab.textContent = 'Special';
               tab.dataset.special = 'true';
               tab.dataset.ids = specialIds.join(',');
+              tab.dataset.categories = ['Icon_Variant','Icon_Variant_Skip','Moon_Special','Special_Round'].join(',');
               tab.addEventListener('click', () => selectTab(tab));
               tabBar.appendChild(tab);
               return;
@@ -208,8 +226,35 @@
             if (match) {
               const tab = document.createElement('div');
               tab.className = 'tab-item';
-              tab.textContent = match.Name; // use canonical name from file
-              tab.dataset.id = match.ID;
+              tab.textContent = match.Name;
+              if (match.ID === 2) {
+                tab.dataset.ids = '2,52';
+              } else if (match.ID === 9) {
+                tab.dataset.ids = '9,53';
+              } else if (match.ID === 51) {
+                // Alternate tab: show Alternate-category entries, check all Alternate sub-rounds
+                tab.dataset.ids = '50,51,52,53,105';
+              } else {
+                tab.dataset.id = match.ID;
+              }
+              // Determine which terror categories to show for this tab
+              const categoryMap = {
+                'Classic': ['Classic'],
+                'Alternate': ['Alternate'],
+                '8 Pages': ['Classic','8Page_Special'],
+                'Fog': ['Classic','Alternate'],
+                'Ghost': ['Classic','Alternate'],
+                'Punished': ['Classic'],
+                'Sabotage': ['Classic'],
+                'Bloodbath': ['Classic'],
+                'Cracked': ['Classic'],
+                'Midnight': ['Classic'],
+                'Unbound': ['Unbound'],
+                'Double Trouble': ['Classic'],
+                'EX': ['Classic'],
+              };
+              const cats = categoryMap[name];
+              if (cats) tab.dataset.categories = cats.join(',');
               tab.addEventListener('click', () => selectTab(tab));
               tabBar.appendChild(tab);
             } else {
@@ -250,42 +295,219 @@
         }
       }
 
+      function buildRoundsMap() {
+        terrorRoundsMap = {};
+        for (const rt of roundTerrors) {
+          if (!terrorRoundsMap[rt.terrorId]) terrorRoundsMap[rt.terrorId] = [];
+          terrorRoundsMap[rt.terrorId].push(rt.roundId);
+        }
+      }
+
+      function getTerrorRounds(terrorId) {
+        return terrorRoundsMap[terrorId] || [];
+      }
+
       async function loadTerrors() {
         try {
-          const resp = await fetch('assets/TerrorsName.json');
-          const raw = await resp.json();
-          // Support both old array format and new grouped object format
-          if (Array.isArray(raw)) {
-            terrorsData = raw;
-          } else if (raw && typeof raw === 'object') {
-            // flatten known groups (Normal, Alternate, Special, etc.) into one array
-            terrorsData = [];
-            for (const key of Object.keys(raw)) {
-              const group = raw[key];
-              if (Array.isArray(group)) terrorsData.push(...group);
-            }
-          } else {
-            terrorsData = [];
-          }
+          const [terrResp, rtResp, varResp] = await Promise.all([
+            fetch('assets/terrors.json'),
+            fetch('assets/round_terrors.json'),
+            fetch('assets/variants.json')
+          ]);
+          terrorsData = await terrResp.json();
+          roundTerrors = await rtResp.json();
+          variantsData = await varResp.json();
+          buildRoundsMap();
         } catch (e) {
-          console.error('Failed to load terrors:', e);
+          console.error('Failed to load data:', e);
           terrorsData = [];
+          roundTerrors = [];
+          variantsData = [];
+          terrorRoundsMap = {};
+        }
+      }
+
+      // Section configuration: which tracker section maps to which modes and round IDs
+      const sectionConfig = {
+        'terrors': {
+          'classic': [1],
+          'fog': [2],
+          'punished': [3],
+          'sabotage': [4],
+          'cracked': [5],
+          'bloodbath': [6, 7, 8],
+          'ghost': [9],
+          'unbounds': [10],
+          'midnight': [50],
+          'alternate': [51],
+          'alternates': [52, 53],   // tracker mode 'alternates' → Fog_Alt/Ghost_Alt
+          '8pages': [105],
+        },
+        'alternates': {
+          'alternate': [51],
+          'alternates': [52, 53],   // top-level alternates section fallback
+          'state': [52, 53],        // flat entry with 'state' mode
+          'survived': [52, 53],     // flat entry with 'survived' key
+          'midnight': [50],
+          'fog': [52],
+          'ghost': [53],
+          '8pages': [105],
+        },
+        'unbounds': {
+          'state': [10],
+        },
+        'moons': {
+          'state': [100, 101, 102, 103, 104, 106, 107],
+        },
+        'specials': {
+          'state': '__use_entry_rounds__',  // use the entry's own AppearsInRounds
+        },
+        'variants_8pages': {
+          '8pages': [105],
+        },
+        'variants_misc': {
+          'state': [100, 101, 102, 103, 104, 106, 107],
+        },
+        'variants_cracked': {
+          'state': [5],
+        },
+        'variants_midnight': {
+          'state': [50],
+        },
+      };
+
+      function isStatusChecked(status) {
+        if (typeof status === 'string') {
+          return status === 'survived' || status === 'survived_ex' || status === 'survived_possessed' || status === 'achieved' || status === 'possessed';
+        }
+        if (typeof status === 'object' && status !== null) {
+          return status.survived === true || status.survived_ex === true || status.survived_possessed === true || status.achieved === true || status.possessed === true;
+        }
+        if (typeof status === 'boolean') return status;
+        return false;
+      }
+
+      async function importFromFile(file) {
+        try {
+          const text = await file.text();
+          const rawStr = atob(text.trim());
+          const nums = rawStr.split(',').map(s => parseInt(s, 10));
+          const bytes = new Uint8Array(nums);
+
+          let jsonStr;
+          if (typeof DecompressionStream !== 'undefined') {
+            const ds = new DecompressionStream('gzip');
+            const writer = ds.writable.getWriter();
+            writer.write(bytes);
+            writer.close();
+            const reader = ds.readable.getReader();
+            const chunks = [];
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+            const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+            const merged = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const c of chunks) {
+              merged.set(c, offset);
+              offset += c.length;
+            }
+            jsonStr = new TextDecoder().decode(merged);
+          } else {
+            throw new Error('DecompressionStream not available');
+          }
+
+          const trackerData = JSON.parse(jsonStr);
+
+          // Load tracker map
+          const mapResp = await fetch('assets/tracker_map.json');
+          const trackerMap = await mapResp.json();
+
+          // Build id -> name lookup
+          const idToName = {};
+          for (const t of terrorsData) {
+            idToName[t.id] = t.Name;
+          }
+
+          // Build import data from ALL sections
+          const newData = {};
+          const sections = ['terrors', 'alternates', 'unbounds', 'moons', 'specials',
+                            'variants_8pages', 'variants_misc', 'variants_cracked', 'variants_midnight'];
+
+          for (const section of sections) {
+            const secData = trackerData[section];
+            if (!secData) continue;
+            const modeMap = sectionConfig[section];
+            if (!modeMap) continue;
+
+                for (const [trackerKey, tdata] of Object.entries(secData)) {
+                  const ids = trackerMap[trackerKey];
+                  if (!Array.isArray(ids)) continue;
+                  for (const id of ids) {
+                    const name = idToName[id];
+                    if (!name) continue;
+                    if (!newData[name]) newData[name] = {};
+
+                    // Handle both flat entries (string/boolean) and nested entries (object)
+                    let entriesToProcess = [];
+                    if (typeof tdata === 'string' || typeof tdata === 'boolean') {
+                      entriesToProcess = [['state', tdata]];
+                    } else if (typeof tdata === 'object' && tdata !== null) {
+                      entriesToProcess = Object.entries(tdata);
+                    } else {
+                      continue;
+                    }
+
+                    for (const [mode, status] of entriesToProcess) {
+                      if (mode === 'seen' || mode === 'variant' || mode === 'from_default' || mode === 'default' || mode === 'locked_variants') continue;
+                      let roundIds = modeMap[mode];
+                      if (roundIds === '__use_entry_rounds__') {
+                        const t = terrorsData.find(e => e.Name === name);
+                        roundIds = t ? getTerrorRounds(t.id) : null;
+                        if (roundIds && roundIds.length === 0) roundIds = null;
+                      }
+                      if (!roundIds) continue;
+                      const checked = isStatusChecked(status);
+                      for (const rid of roundIds) {
+                        newData[name][String(rid)] = checked;
+                      }
+                    }
+                  }
+                }
+          }
+
+          importData = newData;
+
+          // Re-render current tab
+          const currentTab = document.querySelector('.tab-item.active');
+          if (currentTab) {
+            selectTab(currentTab);
+          }
+
+          console.log('Import complete:', Object.keys(importData).length, 'terrors loaded from', sections.length, 'sections');
+        } catch (e) {
+          console.error('Import failed:', e);
+          alert('Import failed: ' + e.message);
         }
       }
 
       function selectTab(tabOrId, maybeName) {
         // Allow calling with either (element) or (id, name)
         let tabElement = null;
-        let isSpecial = false;
         let roundIds = [];
+        let allowedCategories = null;
 
         if (tabOrId && typeof tabOrId === 'object' && tabOrId.classList && tabOrId.classList.contains('tab-item')) {
           tabElement = tabOrId;
-          isSpecial = tabElement.dataset.special === 'true';
-          if (isSpecial && tabElement.dataset.ids) {
+          if (tabElement.dataset.ids) {
             roundIds = String(tabElement.dataset.ids).split(',').map(s => parseInt(s, 10)).filter(Boolean);
           } else if (tabElement.dataset.id) {
             roundIds = [parseInt(tabElement.dataset.id, 10)];
+          }
+          if (tabElement.dataset.categories) {
+            allowedCategories = tabElement.dataset.categories.split(',');
           }
         } else {
           // old signature: (id, name)
@@ -300,44 +522,89 @@
           if (tab === tabElement) tab.classList.add('active'); else tab.classList.remove('active');
         });
 
-        activeTab = tabElement ? (tabElement.dataset.id || 'special') : null;
+        activeTab = tabElement ? (tabElement.dataset.ids || tabElement.dataset.id || 'special') : null;
 
         // Update content area with terrors for this round(s)
         const contentArea = document.getElementById('content-area');
         contentArea.innerHTML = '';
 
-        // Filter terrors that appear in any of the roundIds
-        const terrorsInRound = terrorsData.filter(terror => {
-          const arr = Array.isArray(terror.AppearsInRounds) ? terror.AppearsInRounds : [];
-          return roundIds.some(rid => arr.includes(rid));
-        });
+        // Get all terrors that belong to the allowed categories
+        let terrorsToShow = [];
+        if (allowedCategories) {
+          terrorsToShow = terrorsData.filter(t => {
+            const cat = t.category || 'Classic';
+            return allowedCategories.includes(cat);
+          });
+        } else {
+          // Fallback: filter by round_terrors
+          terrorsToShow = terrorsData.filter(t => {
+            const arr = getTerrorRounds(t.id);
+            return roundIds.some(rid => arr.includes(rid));
+          });
+        }
 
-        if (terrorsInRound.length === 0) {
+        if (terrorsToShow.length === 0) {
           contentArea.innerHTML = `<p style="color: #888;">No terrors configured for this round.</p>`;
           return;
         }
 
         // Create checkboxes for each terror
-        terrorsInRound.forEach(terror => {
+        terrorsToShow.forEach(terror => {
+          const arr = getTerrorRounds(terror.id);
+          const hasRound = roundIds.some(rid => arr.includes(rid));
+
           const div = document.createElement('div');
           div.className = 'round-item';
-          
+          if (!hasRound) div.classList.add('banned');
+
           const label = document.createElement('label');
+          // Banned terrors: label not clickable
+          if (!hasRound) label.style.cursor = 'default';
+
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
           checkbox.dataset.terrorName = terror.Name;
-          // store the matched round ids for this checkbox (comma separated)
           checkbox.dataset.roundIds = roundIds.join(',');
-          
+
+          if (!hasRound) {
+            checkbox.disabled = true;
+          } else {
+            // Apply import data if available
+            if (importData && importData[terror.Name]) {
+              const anyChecked = roundIds.some(rid => importData[terror.Name][String(rid)] === true);
+              checkbox.checked = anyChecked;
+            }
+          }
+
           label.appendChild(checkbox);
           label.appendChild(document.createTextNode(' ' + terror.Name));
-          
+
           div.appendChild(label);
           contentArea.appendChild(div);
         });
       }
 
-      window.addEventListener('DOMContentLoaded', loadRoundTypes);
+      window.addEventListener('DOMContentLoaded', () => {
+        loadRoundTypes();
+
+        const importBtn = document.getElementById('import-btn');
+        if (importBtn) {
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = '.txt';
+          fileInput.style.display = 'none';
+          document.body.appendChild(fileInput);
+
+          importBtn.addEventListener('click', () => fileInput.click());
+          fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              await importFromFile(file);
+            }
+            fileInput.value = '';
+          });
+        }
+      });
     </script>
   </body>
 </html>
