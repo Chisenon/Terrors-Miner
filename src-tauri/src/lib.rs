@@ -476,7 +476,7 @@ async fn create_sub_window(app: tauri::AppHandle) -> Result<(), String> {
     // Build the webview window that loads 'mining_setting.html' from the app
     match tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App("mining_setting.html".into()))
         .title("Mining Setting")
-        .inner_size(600.0, 400.0)
+        .inner_size(300.0, 400.0)
         .build()
     {
         Ok(_) => Ok(()),

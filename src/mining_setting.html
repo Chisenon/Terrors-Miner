@@ -4,13 +4,340 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mining Setting</title>
+    <!-- reuse the main app styles so the look matches the main window -->
+    <link rel="stylesheet" href="styles.css">
     <style>
-      body { font-family: Inter, Avenir, Helvetica, Arial, sans-serif; margin: 16px; background: #fafafa; color: #111; }
-      h1 { font-size: 18px; }
+  /* Fit container to window and avoid outer scroll; reserve space for scrollbar */
+  *, *::before, *::after { box-sizing: border-box; }
+  /* enforce square corners everywhere */
+  * { border-radius: 0 !important; }
+      html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+      body { background: var(--color-dark); }
+
+      .container { 
+        height: 100vh; 
+        width: 100vw; 
+        box-sizing: border-box; 
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-content { 
+        flex: 1;
+        width: 100%; 
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .list-section { 
+        flex: 1;
+        width: 100%; 
+        display: flex; 
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .section-title {
+        background: #4a5f65;
+        color: var(--color-light);
+        padding: 4px 8px;
+        font-weight: 600;
+        font-size: 12px;
+        margin-bottom: 4px;
+        flex-shrink: 0;
+      }
+
+      /* Tab bar - horizontal scrollable */
+      #tab-bar {
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background: #0f0f0f;
+        border-bottom: 1px solid #333;
+        scrollbar-width: thin;
+        width: 100%;
+        max-width: 100%;
+        flex-shrink: 0;
+        box-sizing: border-box;
+      }
+
+      #tab-bar::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      #tab-bar::-webkit-scrollbar-track {
+        background: #0f0f0f;
+      }
+
+      #tab-bar::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 0;
+      }
+
+      .tab-item {
+        flex-shrink: 0;
+        padding: 6px 12px;
+        background: #2a2a2a;
+        color: #aaa;
+        cursor: pointer;
+        font-size: 12px;
+        border: 1px solid #444;
+        border-bottom: none;
+        white-space: nowrap;
+        user-select: none;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .tab-item:hover {
+        background: #3a3a3a;
+        color: #ddd;
+      }
+
+      .tab-item.active {
+        background: #4a5f65;
+        color: #fff;
+        border-color: #4a5f65;
+      }
+
+      /* Content area */
+      #content-area {
+        flex: 1;
+        background: #0f0f0f;
+        padding: 6px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        color: var(--color-light);
+        font-size: 12px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        min-height: 0;
+      }
+
+      /* Style for dummy checkboxes in content area */
+      #content-area .round-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 2px 0;
+        line-height: 1.2;
+      }
+
+      #content-area input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        margin: 0;
+      }
+
+      #content-area label {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+      }
     </style>
   </head>
   <body>
-    <h1>Mining Setting</h1>
-    <p>This window is intentionally blank for now.</p>
+    <div class="container">
+      <div class="main-content">
+        <div class="list-section">
+          <div class="section-title">Select Round Types And Terrors</div>
+          <div id="tab-bar">Loading...</div>
+          <div id="content-area">Select a round type to view details</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let roundTypes = [];
+      let terrorsData = [];
+      let activeTab = null;
+
+      async function loadRoundTypes() {
+        try {
+          const resp = await fetch('assets/Roundtype.json');
+          const data = await resp.json();
+          roundTypes = data;
+          const tabBar = document.getElementById('tab-bar');
+          tabBar.innerHTML = '';
+
+          // Build tabs in a specific order requested by the user.
+          // Note: names are matched case-insensitively against Roundtype.json entries.
+          const desiredOrder = [
+            'Classic',
+            '8 Pages',
+            'Fog',
+            'Ghost',
+            'Punished',
+            'Sabotage',
+            'Bloodbath',
+            'Cracked',
+            'Midnight',
+            'Unbound',
+            'Double Trouble',
+            'EX',
+            'Special'
+          ];
+
+          // Special group should include these round IDs (from Roundtype.json):
+          const specialIds = [100, 101, 102, 103, 104, 106, 107];
+
+          // Helper to find a round type entry by name (case-insensitive)
+          function findRoundByName(name) {
+            const lname = String(name).toLowerCase();
+            return data.find(rt => String(rt.Name).toLowerCase() === lname);
+          }
+
+          desiredOrder.forEach((name) => {
+            if (name === 'Special') {
+              const tab = document.createElement('div');
+              tab.className = 'tab-item';
+              tab.textContent = 'Special';
+              tab.dataset.special = 'true';
+              tab.dataset.ids = specialIds.join(',');
+              tab.addEventListener('click', () => selectTab(tab));
+              tabBar.appendChild(tab);
+              return;
+            }
+
+            const match = findRoundByName(name);
+            if (match) {
+              const tab = document.createElement('div');
+              tab.className = 'tab-item';
+              tab.textContent = match.Name; // use canonical name from file
+              tab.dataset.id = match.ID;
+              tab.addEventListener('click', () => selectTab(tab));
+              tabBar.appendChild(tab);
+            } else {
+              // If exact name not found, try a substring match (fallback)
+              const lname = String(name).toLowerCase();
+              const fuzzy = data.find(rt => String(rt.Name).toLowerCase().includes(lname) || lname.includes(String(rt.Name).toLowerCase()));
+              if (fuzzy) {
+                const tab = document.createElement('div');
+                tab.className = 'tab-item';
+                tab.textContent = fuzzy.Name;
+                tab.dataset.id = fuzzy.ID;
+                tab.addEventListener('click', () => selectTab(tab));
+                tabBar.appendChild(tab);
+              }
+            }
+          });
+
+          // Add mouse wheel scroll support for tab bar
+          tabBar.addEventListener('wheel', (e) => {
+            // Only handle vertical wheel events for horizontal scrolling
+            if (e.deltaY !== 0) {
+              e.preventDefault();
+              tabBar.scrollLeft += e.deltaY;
+            }
+            // Allow horizontal wheel/trackpad events to work naturally
+          }, { passive: false });
+
+          // Load terrors data
+          await loadTerrors();
+
+          // Select the first tab by default (if any)
+          const firstTab = tabBar.querySelector('.tab-item');
+          if (firstTab) selectTab(firstTab);
+        } catch (e) {
+          const tabBar = document.getElementById('tab-bar');
+          tabBar.textContent = 'Failed to load round types';
+          console.error(e);
+        }
+      }
+
+      async function loadTerrors() {
+        try {
+          const resp = await fetch('assets/TerrorsName.json');
+          const raw = await resp.json();
+          // Support both old array format and new grouped object format
+          if (Array.isArray(raw)) {
+            terrorsData = raw;
+          } else if (raw && typeof raw === 'object') {
+            // flatten known groups (Normal, Alternate, Special, etc.) into one array
+            terrorsData = [];
+            for (const key of Object.keys(raw)) {
+              const group = raw[key];
+              if (Array.isArray(group)) terrorsData.push(...group);
+            }
+          } else {
+            terrorsData = [];
+          }
+        } catch (e) {
+          console.error('Failed to load terrors:', e);
+          terrorsData = [];
+        }
+      }
+
+      function selectTab(tabOrId, maybeName) {
+        // Allow calling with either (element) or (id, name)
+        let tabElement = null;
+        let isSpecial = false;
+        let roundIds = [];
+
+        if (tabOrId && typeof tabOrId === 'object' && tabOrId.classList && tabOrId.classList.contains('tab-item')) {
+          tabElement = tabOrId;
+          isSpecial = tabElement.dataset.special === 'true';
+          if (isSpecial && tabElement.dataset.ids) {
+            roundIds = String(tabElement.dataset.ids).split(',').map(s => parseInt(s, 10)).filter(Boolean);
+          } else if (tabElement.dataset.id) {
+            roundIds = [parseInt(tabElement.dataset.id, 10)];
+          }
+        } else {
+          // old signature: (id, name)
+          const id = tabOrId;
+          const el = Array.from(document.querySelectorAll('.tab-item')).find(t => t.dataset.id == id);
+          if (el) tabElement = el;
+          roundIds = [parseInt(id, 10)];
+        }
+
+        // Update active tab styling
+        document.querySelectorAll('.tab-item').forEach(tab => {
+          if (tab === tabElement) tab.classList.add('active'); else tab.classList.remove('active');
+        });
+
+        activeTab = tabElement ? (tabElement.dataset.id || 'special') : null;
+
+        // Update content area with terrors for this round(s)
+        const contentArea = document.getElementById('content-area');
+        contentArea.innerHTML = '';
+
+        // Filter terrors that appear in any of the roundIds
+        const terrorsInRound = terrorsData.filter(terror => {
+          const arr = Array.isArray(terror.AppearsInRounds) ? terror.AppearsInRounds : [];
+          return roundIds.some(rid => arr.includes(rid));
+        });
+
+        if (terrorsInRound.length === 0) {
+          contentArea.innerHTML = `<p style="color: #888;">No terrors configured for this round.</p>`;
+          return;
+        }
+
+        // Create checkboxes for each terror
+        terrorsInRound.forEach(terror => {
+          const div = document.createElement('div');
+          div.className = 'round-item';
+          
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.dataset.terrorName = terror.Name;
+          // store the matched round ids for this checkbox (comma separated)
+          checkbox.dataset.roundIds = roundIds.join(',');
+          
+          label.appendChild(checkbox);
+          label.appendChild(document.createTextNode(' ' + terror.Name));
+          
+          div.appendChild(label);
+          contentArea.appendChild(div);
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', loadRoundTypes);
+    </script>
   </body>
 </html>

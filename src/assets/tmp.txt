@@ -1,0 +1,134 @@
+0	Normal	Huggy
+1	Normal	Corrupted Toys
+2	Normal	Demented Spongebob
+3	Normal	Specimen 8
+4	Normal	HER
+5	Normal	Tails Doll
+6	Normal	Black Sun
+7	Normal	Aku Ball
+8	Normal	Ao Oni
+9	Normal	Toren’s Shadow
+10	Normal	[CENSORED]
+11	Normal	WhiteNight
+12	Normal	An Arbiter
+13	Normal	Specimen 5
+14	Normal	Comedy
+15	Normal	Purple Guy
+16	Normal	Spongefly Swarm
+17	Normal	Hush
+18	Normal	MopeMope
+19	Normal	Sawrunner
+20	Normal	Imposter
+21	Normal	Something
+22	Normal	Starved
+23	Normal	The Painter
+24	Normal	The Guidance
+25	Normal	With Many Voices
+26	Normal	Nextbots
+27	Normal	Harvest
+28	Normal	Smileghost
+29	Normal	Karol_Corpse
+30	Normal	MX
+31	Normal	Big Bird
+32	Normal	Dev Byte
+33	Normal	Luigi & Luigi Dolls
+34	Normal	V2
+35	Normal	Withered Bonnie
+36	Normal	The Boys
+37	Normal	Something Wicked
+38	Normal	Seek
+39	Normal	Rush
+40	Normal	Sonic
+41	Normal	Bad Batter
+42	Normal	Signus
+43	Normal	Mirror
+44	Normal	Legs
+45	Normal	Mona & The Mountain
+46	Normal	Judgement Bird
+47	Normal	Slender
+48	Normal	Maul-A-Child
+49	Normal	Garten Goers
+50	Normal	Don’t Touch Me
+51	Normal	Specimen 2
+52	Normal	Specimen 10
+53	Normal	The Lifebringer
+54	Normal	Pale Association
+55	Normal	Toy Enforcer
+56	Normal	TBH
+57	Normal	Doombox
+58	Normal	Christian Brutal Sniper
+59	Normal	Nosk
+60	Normal	Apocrean Harvester
+61	Normal	Arkus
+62	Normal	Cartoon Cat
+63	Normal	Wario Apparition
+64	Normal	Shinto
+65	Normal	Hell Bell
+66	Normal	Security
+67	Normal	The Swarm
+68	Normal	Shiteyanyo
+69	Normal	Bacteria
+70	Normal	Tiffany
+71	Normal	HoovyDundy
+72	Normal	Haket
+73	Normal	Akumii-Kari
+74	Normal	Lunatic Cultist
+75	Normal	Sturm
+76	Normal	Punishing Bird
+77	Normal	Prisoner
+78	Normal	Red Bus
+79	Normal	Waterwraith
+80	Normal	Astrum Aureus
+81	Normal	Snarbolax
+82	Normal	All-Around-Helpers
+83	Normal	lain
+84	Normal	Sakuya Izayoi
+85	Normal	Arrival
+86	Normal	Miros Birds
+87	Normal	BFF
+88	Normal	Scavenger
+89	Normal	Tinky Winky
+90	Normal	Trickey
+91	Normal	Yolm
+92	Normal	Red Fanatic
+93	Normal	Dr. Tox
+94	Normal	Ink Demon
+95	Normal	Retep
+96	Normal	Those Olden Days
+97	Normal	S.O.S
+98	Normal	Bigger Boot
+99	Normal	The Pursuer
+100	Normal	Spamton
+101	Normal	Immortal Snail
+102	Normal	Charlotte
+103	Normal	Herobrine
+104	Normal	Peepy
+105	Normal	The Jester
+106	Normal	Wild Yet Curious Creature
+107	Normal	Manti
+108	Normal	Horseless Headless Horsemann
+109	Normal	Ghost Girl
+110	Normal	Cubor's Revenge
+111	Normal	Poly
+112	Normal	Dog Mimic
+113	Normal	Warden
+114	Normal	FOX Squad
+115	Normal	Express Train To Hell
+116	Normal	Deleted
+117	Normal	Killer Fish
+118	Normal	Terror of Nowhere
+119	Normal	Beyond
+120	Normal	The Origin
+121	Normal	Time Ripper
+122	Normal	This Killer Does Not Exist
+123	Normal	Parhelion's Victims
+124	Normal	Bed Mecha
+125	Normal	Killer Rabbit
+126	Normal	Bravera
+127	Normal	Missing No
+128	Normal	Living Shadow
+129	Normal	The Plague Doctor
+130	Normal	The Rat
+131	Normal	Waldo
+132	Normal	Clockey
+133	Normal	Malicious Twins
