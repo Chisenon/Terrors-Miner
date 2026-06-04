@@ -20,7 +20,7 @@ function addLogEntry(message) {
 }
 
 function addVRChatProfile() {
-  const existingProfiles = vrchatInstances.map(instance => instance.profile);
+  const existingProfiles = vrchatInstances.map((instance) => instance.profile);
   let nextProfile = 1;
   while (existingProfiles.includes(nextProfile)) {
     nextProfile++;
@@ -44,7 +44,9 @@ function createListItem(instance, index) {
   const li = document.createElement('li');
   li.className = 'list-item';
 
-  let statusClass, statusText, pidText;
+  let statusClass;
+  let statusText;
+  let pidText;
   if (instance.status === 'launching') {
     statusClass = 'status-launching';
     statusText = 'Launching...';
@@ -103,13 +105,20 @@ async function toggleInstance(index) {
   }
 }
 
-function removeInstance(index) {
+async function removeInstance(index) {
   const removedInstance = vrchatInstances[index];
+  if (!removedInstance) return;
 
   if (removedInstance.status === 'running') {
     if (!confirm(`Profile ${removedInstance.profile} is running. Stop and delete?`)) {
       return;
     }
+  }
+
+  try {
+    await tauriInvoke('remove_profile_settings', { profile: removedInstance.profile });
+  } catch (error) {
+    addLogEntry(`Failed to remove profile settings (Profile ${removedInstance.profile}): ${error}`);
   }
 
   vrchatInstances.splice(index, 1);
@@ -130,7 +139,7 @@ async function openVRChat(index) {
 
     const eacActive = await tauriInvoke('is_eac_launcher_running');
     if (eacActive) {
-      addLogEntry('❌ EAC launcher is already running. Open aborted');
+      addLogEntry('EAC launcher is already running. Open aborted');
       return;
     }
 
@@ -145,12 +154,12 @@ async function openVRChat(index) {
       }
       instance.processId = result.process_id;
       renderList();
-      addLogEntry(`✅ ${result.message} (PID: ${result.process_id})`);
+      addLogEntry(`${result.message} (PID: ${result.process_id})`);
     } else {
-      addLogEntry(`❌ ${result.message}`);
+      addLogEntry(result.message);
     }
   } catch (error) {
-    addLogEntry(`❌ Failed to launch VRChat Profile ${instance.profile}: ${error}`);
+    addLogEntry(`Failed to launch VRChat Profile ${instance.profile}: ${error}`);
   }
 }
 
@@ -171,19 +180,22 @@ async function closeVRChat(index) {
       const oldPid = instance.processId;
       instance.processId = null;
       renderList();
-      addLogEntry(`✅ ${result.message} (PID: ${oldPid})`);
+      addLogEntry(`${result.message} (PID: ${oldPid})`);
     } else {
-      addLogEntry(`❌ ${result.message}`);
+      addLogEntry(result.message);
     }
   } catch (error) {
-    addLogEntry(`❌ Failed to stop VRChat Profile ${instance.profile}: ${error}`);
+    addLogEntry(`Failed to stop VRChat Profile ${instance.profile}: ${error}`);
   }
 }
 
 async function openSetting(index) {
+  const instance = vrchatInstances[index];
+  if (!instance) return;
+
   try {
-    await tauriInvoke('create_sub_window');
-    addLogEntry(`Setting window opened (Profile ${vrchatInstances[index].profile})`);
+    await tauriInvoke('create_sub_window', { profile: instance.profile });
+    addLogEntry(`Setting window opened (Profile ${instance.profile})`);
   } catch (error) {
     addLogEntry(`Failed to create Setting window: ${error}`);
   }
@@ -206,7 +218,7 @@ async function checkRunningProcesses() {
     const runningProcesses = await tauriInvoke('get_running_vrchat');
 
     let statusChanged = false;
-    vrchatInstances.forEach(instance => {
+    vrchatInstances.forEach((instance) => {
       const currentPid = runningProcesses[instance.profile];
       const isRunning = currentPid !== undefined;
 
@@ -216,40 +228,38 @@ async function checkRunningProcesses() {
           instance.processId = currentPid;
           instance.waitingForMainProcess = false;
           statusChanged = true;
-          addLogEntry(`✅ VRChat Profile ${instance.profile} main process started (PID: ${currentPid})`);
+          addLogEntry(`VRChat Profile ${instance.profile} main process started (PID: ${currentPid})`);
         }
-      }
-      else if (instance.status === 'running') {
+      } else if (instance.status === 'running') {
         if (!isRunning) {
           instance.status = 'stopped';
           instance.processId = null;
           instance.waitingForMainProcess = false;
           statusChanged = true;
-          addLogEntry(`⚠️ VRChat Profile ${instance.profile} stopped`);
+          addLogEntry(`VRChat Profile ${instance.profile} stopped`);
         } else if (instance.processId !== currentPid) {
           const oldPid = instance.processId;
           instance.processId = currentPid;
           statusChanged = true;
-          addLogEntry(`🔄 VRChat Profile ${instance.profile} process changed: ${oldPid} → ${currentPid}`);
+          addLogEntry(`VRChat Profile ${instance.profile} process changed: ${oldPid} -> ${currentPid}`);
         }
-      }
-      else if (instance.status === 'stopped') {
+      } else if (instance.status === 'stopped') {
         if (isRunning) {
           instance.status = 'running';
           instance.processId = currentPid;
           instance.waitingForMainProcess = false;
           statusChanged = true;
-          addLogEntry(`✅ VRChat Profile ${instance.profile} detected (PID: ${currentPid})`);
+          addLogEntry(`VRChat Profile ${instance.profile} detected (PID: ${currentPid})`);
         }
       }
     });
 
-    const knownProfiles = new Set(vrchatInstances.map(i => i.profile));
+    const knownProfiles = new Set(vrchatInstances.map((i) => i.profile));
     for (const [profileStr, pid] of Object.entries(runningProcesses)) {
-      const profile = parseInt(profileStr);
+      const profile = Number.parseInt(profileStr, 10);
       if (!knownProfiles.has(profile)) {
         const newInstance = {
-          profile: profile,
+          profile,
           name: `VRChat Profile ${profile}`,
           status: 'running',
           processId: pid,
@@ -257,7 +267,7 @@ async function checkRunningProcesses() {
         };
         vrchatInstances.push(newInstance);
         statusChanged = true;
-        addLogEntry(`🆕 Existing VRChat Profile ${profile} auto-added (PID: ${pid})`);
+        addLogEntry(`Existing VRChat Profile ${profile} auto-added (PID: ${pid})`);
       }
     }
 
@@ -275,7 +285,7 @@ async function checkEacLauncher() {
     const active = await tauriInvoke('is_eac_launcher_running');
     if (active !== isEacActive) {
       isEacActive = active;
-      addLogEntry(isEacActive ? '⚠️ EAC launcher detected. Open button disabled' : '✅ EAC launcher not found. Open button enabled');
+      addLogEntry(isEacActive ? 'EAC launcher detected. Open button disabled' : 'EAC launcher not found. Open button enabled');
       renderList();
     }
   } catch (error) {
@@ -283,20 +293,20 @@ async function checkEacLauncher() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  itemList = document.querySelector("#instance_list");
-  addButton = document.querySelector("#add-button");
-  itemCount = document.querySelector("#item-count");
+window.addEventListener('DOMContentLoaded', () => {
+  itemList = document.querySelector('#instance_list');
+  addButton = document.querySelector('#add-button');
+  itemCount = document.querySelector('#item-count');
 
-  addButton.addEventListener("click", addVRChatProfile);
+  addButton.addEventListener('click', addVRChatProfile);
 
   vrchatInstances = [];
   renderList();
   updateItemCount();
 
-  addLogEntry("VRChat Manager initialized");
+  addLogEntry('VRChat Manager initialized');
   addLogEntry("Click 'Add' to create a new VRChat profile");
-  addLogEntry("VRChat path: C:\\Program Files (x86)\\Steam\\steamapps\\common\\VRChat\\start_protected_game.exe");
+  addLogEntry('VRChat path: C:\\Program Files (x86)\\Steam\\steamapps\\common\\VRChat\\start_protected_game.exe');
 
   setInterval(checkRunningProcesses, 3000);
   setInterval(checkEacLauncher, 2000);

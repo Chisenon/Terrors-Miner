@@ -155,7 +155,7 @@
       <div class="main-content">
         <div class="list-section">
           <div class="section-title">
-            Select Round Types And Terrors
+            <span id="section-title-text">Select Round Types And Terrors</span>
             <button id="import-btn" style="float:right;font-size:11px;padding:2px 8px;cursor:pointer;background:#5a7f85;color:#fff;border:none;">Import</button>
           </div>
           <div id="tab-bar">Loading...</div>
@@ -256,7 +256,8 @@
       let terrorsData = [];
       let trackerKeyToTerror = new Map();
       let replacedByMap = new Map();
-      let importData = null;
+      let profileSettings = {};
+      let activeProfile = null;
       let tabConfigs = [];
       let tabConfigByKey = new Map();
       let initialLoadPromise = null;
@@ -280,6 +281,54 @@
           throw new Error('Tauri invoke is not available');
         }
         return window.__TAURI__.core.invoke(cmd, args);
+      }
+      function parseProfileFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const profileValue = Number.parseInt(params.get('profile') || '', 10);
+        if (!Number.isFinite(profileValue) || profileValue <= 0) {
+          return null;
+        }
+        return profileValue;
+      }
+      function sanitizeProfileSettings(raw) {
+        if (!raw || typeof raw !== 'object') return {};
+        const normalized = {};
+        for (const [terrorKey, rounds] of Object.entries(raw)) {
+          if (!terrorKey || typeof rounds !== 'object' || rounds === null) continue;
+          const mapped = {};
+          for (const [roundId, checked] of Object.entries(rounds)) {
+            mapped[String(roundId)] = checked === true;
+          }
+          normalized[terrorKey] = mapped;
+        }
+        return normalized;
+      }
+      async function loadProfileSettings() {
+        if (activeProfile === null) {
+          profileSettings = {};
+          return;
+        }
+        const loaded = await tauriInvoke('get_profile_settings', { profile: activeProfile });
+        profileSettings = sanitizeProfileSettings(loaded);
+      }
+      async function persistProfileSettings() {
+        if (activeProfile === null) return;
+        await tauriInvoke('set_profile_settings', { profile: activeProfile, settings: profileSettings });
+      }
+      function isCheckedForTabRounds(terrorKey, roundIds) {
+        if (!terrorKey) return false;
+        const terrorState = profileSettings[terrorKey];
+        if (!terrorState) return false;
+        return roundIds.some((roundId) => terrorState[String(roundId)] === true);
+      }
+      function setCheckedForTabRounds(terrorKey, roundIds, checked) {
+        if (!terrorKey) return;
+        if (!profileSettings[terrorKey]) {
+          profileSettings[terrorKey] = {};
+        }
+        for (const roundId of roundIds) {
+          profileSettings[terrorKey][String(roundId)] = checked === true;
+        }
       }
       function normalizeName(name) {
         return String(name || '').toLowerCase();
@@ -512,7 +561,8 @@
             await initialLoadPromise;
           }
           const trackerData = await decodeImportFile(file);
-          importData = buildImportState(trackerData);
+          profileSettings = buildImportState(trackerData);
+          await persistProfileSettings();
           const currentTab = document.querySelector('.tab-item.active');
           if (currentTab && currentTab.dataset.key) {
             selectTabByKey(currentTab.dataset.key);
@@ -590,19 +640,24 @@
         checkbox.type = 'checkbox';
         checkbox.dataset.trackerKey = terror.trackerKey || '';
         checkbox.dataset.roundIds = tabConfig.roundIds.join(',');
-        if (importData && terror.trackerKey && importData[terror.trackerKey]) {
-          checkbox.checked = tabConfig.roundIds.some((roundId) => importData[terror.trackerKey][String(roundId)] === true);
-        }
+        checkbox.checked = isCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds);
         if (!hasRound) {
           checkbox.addEventListener('click', (event) => event.preventDefault());
+        } else {
+          checkbox.addEventListener('change', () => {
+            if (!terror.trackerKey) return;
+            setCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds, checkbox.checked);
+            persistProfileSettings().catch((error) => {
+              console.error('Failed to save profile settings:', error);
+            });
+          });
         }
         label.appendChild(checkbox);
         label.appendChild(document.createTextNode(` ${createTerrorLabel(terror, tabConfig)}`));
         row.appendChild(label);
         return row;
       }
-      function applyImportToRenderedCheckboxes() {
-        if (!importData) return;
+      function applySettingsToRenderedCheckboxes() {
         const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
         for (const checkbox of checkboxes) {
           const trackerKey = checkbox.dataset.trackerKey;
@@ -610,7 +665,7 @@
             .split(',')
             .map((v) => Number.parseInt(v, 10))
             .filter((v) => Number.isFinite(v));
-          const terrorState = trackerKey ? importData[trackerKey] : null;
+          const terrorState = trackerKey ? profileSettings[trackerKey] : null;
           checkbox.checked = !!(terrorState && roundIds.some((roundId) => terrorState[String(roundId)] === true));
         }
       }
@@ -633,7 +688,7 @@
           tab.classList.toggle('active', tab.dataset.key === tabKey);
         });
         renderTabContent(tabConfig);
-        applyImportToRenderedCheckboxes();
+        applySettingsToRenderedCheckboxes();
       }
       function setupImportButton() {
         const importBtn = document.getElementById('import-btn');
@@ -652,10 +707,22 @@
           fileInput.value = '';
         });
       }
+      async function initializePage() {
+        activeProfile = parseProfileFromQuery();
+        if (activeProfile !== null) {
+          document.title = `Mining Setting - Profile ${activeProfile}`;
+          const sectionTitle = document.getElementById('section-title-text');
+          if (sectionTitle) {
+            sectionTitle.textContent = `Select Round Types And Terrors (Profile ${activeProfile})`;
+          }
+        }
+        await loadProfileSettings();
+        await loadRoundTypes();
+      }
       window.addEventListener('DOMContentLoaded', () => {
         enableTabBarWheelScroll();
         setupImportButton();
-        initialLoadPromise = loadRoundTypes();
+        initialLoadPromise = initializePage();
       });
     </script>
   </body>

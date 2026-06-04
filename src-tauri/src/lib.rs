@@ -11,10 +11,17 @@ use base64::Engine;
 use flate2::read::GzDecoder;
 
 use once_cell::sync::Lazy;
+use tauri::Manager;
 static VRCHAT_PROCESSES: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PENDING_PROFILES: Lazy<Mutex<VecDeque<u32>>> = Lazy::new(|| Mutex::new(VecDeque::new()));
 static MISSED_DETECTIONS: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static STOPPING_PROFILES: Lazy<Mutex<HashSet<u32>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+static PROFILE_SETTINGS: Lazy<Mutex<HashMap<u32, Value>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn clear_profile_settings(profile: u32) {
+    let mut settings = PROFILE_SETTINGS.lock().unwrap();
+    settings.remove(&profile);
+}
 
 struct StopGuard {
     profile: u32,
@@ -131,6 +138,7 @@ async fn stop_vrchat(profile: u32) -> Result<VRChatResult, String> {
                 if kill_and_wait(pid) {
                     let mut processes = VRCHAT_PROCESSES.lock().unwrap();
                     processes.remove(&profile);
+                    clear_profile_settings(profile);
                     return Ok(VRChatResult {
                         success: true,
                         message: format!("VRChat Profile {} stopped", profile),
@@ -163,6 +171,7 @@ async fn stop_vrchat(profile: u32) -> Result<VRChatResult, String> {
             let mut processes = VRCHAT_PROCESSES.lock().unwrap();
             processes.retain(|&p, &mut _| p != profile);
             processes.remove(&profile);
+            clear_profile_settings(profile);
             return Ok(VRChatResult {
                 success: true,
                 message: format!("VRChat Profile {} stopped (PID: {})", profile, pid),
@@ -179,6 +188,7 @@ async fn stop_vrchat(profile: u32) -> Result<VRChatResult, String> {
         }
     }
 
+    clear_profile_settings(profile);
     Ok(VRChatResult {
         success: false,
         message: format!("No process found for Profile {}", profile),
@@ -291,6 +301,7 @@ fn spawn_vrchat_pid_monitor() {
                         if let Some(removed_pid) = stored.remove(&profile) {
                             eprintln!("[PID MONITOR] Profile {} PID {} removed (missed 2x)", profile, removed_pid);
                         }
+                        clear_profile_settings(profile);
                         missed.remove(&profile);
                     }
                 }
@@ -364,7 +375,10 @@ pub fn run() {
             debug_vrchat_processes,
             is_eac_launcher_running,
             create_sub_window,
-            decode_tracker_import
+            decode_tracker_import,
+            get_profile_settings,
+            set_profile_settings,
+            remove_profile_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -386,16 +400,46 @@ fn is_eac_launcher_running() -> Result<bool, String> {
 }
 
 #[tauri::command]
-async fn create_sub_window(app: tauri::AppHandle) -> Result<(), String> {
-    let label = "Mining_Setting";
-    match tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App("mining_setting.html".into()))
-        .title("Mining Setting")
+async fn create_sub_window(app: tauri::AppHandle, profile: u32) -> Result<(), String> {
+    let label = format!("Mining_Setting_{}", profile);
+    if let Some(window) = app.get_webview_window(&label) {
+        window
+            .set_focus()
+            .map_err(|e| format!("Failed to focus existing sub-window: {}", e))?;
+        return Ok(());
+    }
+
+    let window_url = format!("mining_setting.html?profile={}", profile);
+    match tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(window_url.into()))
+        .title(format!("Mining Setting - Profile {}", profile))
         .inner_size(600.0, 400.0)
         .build()
     {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Failed to create sub-window: {}", e)),
     }
+}
+
+#[tauri::command]
+fn get_profile_settings(profile: u32) -> Result<Value, String> {
+    let settings = PROFILE_SETTINGS.lock().unwrap();
+    Ok(settings.get(&profile).cloned().unwrap_or_else(|| Value::Object(serde_json::Map::new())))
+}
+
+#[tauri::command]
+fn set_profile_settings(profile: u32, settings: Value) -> Result<(), String> {
+    if !settings.is_object() {
+        return Err("settings must be a JSON object".to_string());
+    }
+    let mut state = PROFILE_SETTINGS.lock().unwrap();
+    state.insert(profile, settings);
+    Ok(())
+}
+
+#[tauri::command]
+fn remove_profile_settings(profile: u32) -> Result<(), String> {
+    clear_profile_settings(profile);
+    Ok(())
 }
 
 #[tauri::command]
