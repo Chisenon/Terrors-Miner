@@ -200,6 +200,7 @@
         'variants_midnight'
       ];
       const IMPORT_IGNORE_MODES = new Set(['seen', 'variant', 'from_default', 'default', 'locked_variants']);
+      const POSITIVE_STATUS_STRINGS = new Set(['survived', 'survived_ex', 'survived_possessed', 'achieved', 'possessed']);
       const CATEGORY_TAB_SCOPE = {
         Classic: new Set(['classic', 'fog', 'punished', 'sabotage', 'cracked', 'bloodbath', 'double trouble', 'ex', 'ghost', 'midnight', '8 pages']),
         Alternate: new Set(['alternate', 'fog', 'ghost', 'midnight', '8 pages'])
@@ -253,8 +254,8 @@
         }
       };
       let terrorsData = [];
-      let trackerKeyToTerror = {};
-      let replacedByMap = {};
+      let trackerKeyToTerror = new Map();
+      let replacedByMap = new Map();
       let importData = null;
       let tabConfigs = [];
       let tabConfigByKey = new Map();
@@ -295,6 +296,7 @@
           key: normalizeName(desiredName),
           label: round.Name,
           roundIds,
+          roundSet: new Set(roundIds),
           isSpecial: false
         };
       }
@@ -303,7 +305,10 @@
         const usedIds = new Set();
         for (const name of TAB_ORDER) {
           if (name === 'Special') {
-            configs.push(SPECIAL_TAB_CONFIG);
+            configs.push({
+              ...SPECIAL_TAB_CONFIG,
+              roundSet: new Set(SPECIAL_TAB_CONFIG.roundIds)
+            });
             continue;
           }
           const round = findRoundTypeByName(roundTypes, name);
@@ -358,32 +363,28 @@
       async function loadTerrors() {
         try {
           terrorsData = await fetchJson(TERRORS_PATH);
-          trackerKeyToTerror = {};
-          replacedByMap = {};
+          trackerKeyToTerror = new Map();
+          replacedByMap = new Map();
           for (const terror of terrorsData) {
             if (terror.trackerKey) {
-              trackerKeyToTerror[terror.trackerKey] = terror;
+              trackerKeyToTerror.set(terror.trackerKey, terror);
             }
             if (!Array.isArray(terror.replaces)) continue;
             for (const rep of terror.replaces) {
-              if (!replacedByMap[rep.baseName]) replacedByMap[rep.baseName] = [];
-              replacedByMap[rep.baseName].push({ replacer: terror, rounds: rep.rounds || [] });
+              if (!replacedByMap.has(rep.baseName)) replacedByMap.set(rep.baseName, []);
+              replacedByMap.get(rep.baseName).push({ replacer: terror, rounds: rep.rounds || [] });
             }
           }
         } catch (e) {
           console.error('Failed to load data:', e);
           terrorsData = [];
-          trackerKeyToTerror = {};
-          replacedByMap = {};
+          trackerKeyToTerror = new Map();
+          replacedByMap = new Map();
         }
       }
       function isStatusChecked(status) {
         if (typeof status === 'string') {
-          return status === 'survived'
-            || status === 'survived_ex'
-            || status === 'survived_possessed'
-            || status === 'achieved'
-            || status === 'possessed';
+          return POSITIVE_STATUS_STRINGS.has(status);
         }
         if (typeof status === 'object' && status !== null) {
           return status.survived === true
@@ -422,7 +423,7 @@
         }
       }
       function applyReplacerChecks(state, terror, roundId, checked) {
-        const replacers = replacedByMap[terror.Name];
+        const replacers = replacedByMap.get(terror.Name);
         if (!replacers) return;
         for (const rep of replacers) {
           if (!Array.isArray(rep.rounds) || !rep.rounds.includes(roundId)) continue;
@@ -437,7 +438,7 @@
           const modeMap = sectionConfig[section];
           if (!modeMap) continue;
           for (const [trackerKey, entryData] of Object.entries(sectionData)) {
-            const terror = trackerKeyToTerror[trackerKey];
+            const terror = trackerKeyToTerror.get(trackerKey);
             if (!terror) continue;
             for (const [mode, status] of getEntriesToProcess(entryData)) {
               if (IMPORT_IGNORE_MODES.has(mode)) continue;
@@ -505,13 +506,13 @@
           alert('Import failed: ' + e.message);
         }
       }
-      function terrorAppearsInAnyRound(terror, roundIds) {
+      function terrorAppearsInAnyRound(terror, roundSet) {
         if (!Array.isArray(terror.appearsInRounds)) return false;
-        return roundIds.some((roundId) => terror.appearsInRounds.includes(roundId));
+        return terror.appearsInRounds.some((roundId) => roundSet.has(roundId));
       }
-      function terrorReplacesInAnyRound(terror, roundIds) {
+      function terrorReplacesInAnyRound(terror, roundSet) {
         if (!Array.isArray(terror.replaces)) return false;
-        return terror.replaces.some((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => roundIds.includes(roundId)));
+        return terror.replaces.some((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => roundSet.has(roundId)));
       }
       function terrorIsInCategoryTabScope(terror, tabConfig) {
         const allowedTabs = CATEGORY_TAB_SCOPE[terror.category];
@@ -520,7 +521,7 @@
       }
       function terrorActsAsReplacerInTab(terror, tabConfig) {
         if (tabConfig.isSpecial) return false;
-        return terrorReplacesInAnyRound(terror, tabConfig.roundIds);
+        return terrorReplacesInAnyRound(terror, tabConfig.roundSet);
       }
       function hasValidTerrorShape(terror) {
         return terror
@@ -529,12 +530,12 @@
           && (Array.isArray(terror.appearsInRounds) || Array.isArray(terror.replaces));
       }
       function getTerrorsForTab(tabConfig) {
-        const { roundIds } = tabConfig;
+        const { roundSet } = tabConfig;
         const seenNames = new Set();
         return terrorsData.filter((terror) => {
           if (!hasValidTerrorShape(terror)) return false;
           if (terrorActsAsReplacerInTab(terror, tabConfig)) return false;
-          const appears = terrorAppearsInAnyRound(terror, roundIds);
+          const appears = terrorAppearsInAnyRound(terror, roundSet);
           const inCategoryScope = terrorIsInCategoryTabScope(terror, tabConfig);
           if (!appears && !inCategoryScope) return false;
           const normalized = normalizeName(terror.Name);
@@ -543,17 +544,17 @@
           return true;
         });
       }
-      function terrorHasRound(terror, roundIds) {
-        return Array.isArray(terror.appearsInRounds)
-          && roundIds.some((roundId) => terror.appearsInRounds.includes(roundId));
+      function terrorHasRound(terror, roundSet) {
+        if (!Array.isArray(terror.appearsInRounds)) return false;
+        return terror.appearsInRounds.some((roundId) => roundSet.has(roundId));
       }
       function createTerrorLabel(terror, tabConfig) {
         let displayName = terror.Name;
         if (tabConfig.isSpecial) return displayName;
-        const replacers = replacedByMap[terror.Name];
+        const replacers = replacedByMap.get(terror.Name);
         if (!replacers) return displayName;
         const names = replacers
-          .filter((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => tabConfig.roundIds.includes(roundId)))
+          .filter((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => tabConfig.roundSet.has(roundId)))
           .map((rep) => rep.replacer.Name);
         if (names.length > 0) {
           displayName += ` (${names.join(', ')})`;
@@ -561,7 +562,7 @@
         return displayName;
       }
       function createTerrorRow(terror, tabConfig) {
-        const hasRound = terrorHasRound(terror, tabConfig.roundIds);
+        const hasRound = terrorHasRound(terror, tabConfig.roundSet);
         const row = document.createElement('div');
         row.className = 'round-item';
         if (!hasRound) row.classList.add('banned');
