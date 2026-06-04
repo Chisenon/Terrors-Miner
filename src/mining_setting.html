@@ -163,447 +163,464 @@
         </div>
       </div>
     </div>
-
     <script>
-      let roundTypes = [];
+      const ROUNDTYPE_PATH = 'assets/Roundtype.json';
+      const TERRORS_PATH = 'assets/terrors.json';
+      const TAB_ORDER = [
+        'Classic',
+        'Alternate',
+        '8 Pages',
+        'Fog',
+        'Ghost',
+        'Punished',
+        'Sabotage',
+        'Bloodbath',
+        'Cracked',
+        'Midnight',
+        'Unbound',
+        'Double Trouble',
+        'EX',
+        'Special'
+      ];
+      const SPECIAL_TAB_CONFIG = {
+        key: 'special',
+        label: 'Special',
+        roundIds: [100, 101, 102, 103, 104, 106, 107],
+        isSpecial: true
+      };
+      const IMPORT_SECTIONS = [
+        'terrors',
+        'alternates',
+        'unbounds',
+        'moons',
+        'specials',
+        'variants_8pages',
+        'variants_misc',
+        'variants_cracked',
+        'variants_midnight'
+      ];
+      const IMPORT_IGNORE_MODES = new Set(['seen', 'variant', 'from_default', 'default', 'locked_variants']);
+      const CATEGORY_TAB_SCOPE = {
+        Classic: new Set(['classic', 'fog', 'punished', 'sabotage', 'cracked', 'bloodbath', 'double trouble', 'ex', 'ghost', 'midnight', '8 pages']),
+        Alternate: new Set(['alternate', 'fog', 'ghost', 'midnight', '8 pages'])
+      };
+      // Which tracker sections/modes map to which round IDs.
+      const sectionConfig = {
+        terrors: {
+          classic: [1],
+          fog: [2],
+          punished: [3],
+          sabotage: [4],
+          cracked: [5],
+          bloodbath: [6, 7, 8],
+          ghost: [9],
+          unbounds: [10],
+          midnight: [50],
+          alternate: [51],
+          alternates: [52, 53],
+          '8pages': [105]
+        },
+        alternates: {
+          alternate: [51],
+          alternates: [52, 53],
+          state: [52, 53],
+          survived: [52, 53],
+          midnight: [50],
+          fog: [52],
+          ghost: [53],
+          '8pages': [105]
+        },
+        unbounds: {
+          state: [10]
+        },
+        moons: {
+          state: [100, 101, 102, 103, 104, 106, 107]
+        },
+        specials: {
+          state: '__use_entry_rounds__'
+        },
+        variants_8pages: {
+          '8pages': [105]
+        },
+        variants_misc: {
+          state: [100, 101, 102, 103, 104, 106, 107]
+        },
+        variants_cracked: {
+          state: [5]
+        },
+        variants_midnight: {
+          state: [50]
+        }
+      };
       let terrorsData = [];
-      let roundTerrors = [];
-      let variantsData = [];
-      let terrorRoundsMap = {};
-      let activeTab = null;
-      let importData = null; // { terrorName: { roundId_str: bool } }
-
+      let trackerKeyToTerror = {};
+      let replacedByMap = {};
+      let importData = null;
+      let tabConfigs = [];
+      let tabConfigByKey = new Map();
+      function getTabBarElement() {
+        return document.getElementById('tab-bar');
+      }
+      function getContentAreaElement() {
+        return document.getElementById('content-area');
+      }
+      async function fetchJson(path) {
+        const sep = path.includes('?') ? '&' : '?';
+        const url = `${path}${sep}t=${Date.now()}`;
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) {
+          throw new Error(`Failed to load ${path}: HTTP ${resp.status}`);
+        }
+        return resp.json();
+      }
+      function normalizeName(name) {
+        return String(name || '').toLowerCase();
+      }
+      function findRoundTypeByName(roundTypes, desiredName) {
+        const normalized = normalizeName(desiredName);
+        const exact = roundTypes.find((item) => normalizeName(item.Name) === normalized);
+        if (exact) return exact;
+        return roundTypes.find((item) => {
+          const current = normalizeName(item.Name);
+          return current.includes(normalized) || normalized.includes(current);
+        });
+      }
+      function createTabConfigFromRound(round, desiredName) {
+        const roundIds = round.ID === 2
+          ? [2, 52]
+          : round.ID === 9
+            ? [9, 53]
+            : [round.ID];
+        return {
+          key: normalizeName(desiredName),
+          label: round.Name,
+          roundIds,
+          isSpecial: false
+        };
+      }
+      function buildTabConfigs(roundTypes) {
+        const configs = [];
+        const usedIds = new Set();
+        for (const name of TAB_ORDER) {
+          if (name === 'Special') {
+            configs.push(SPECIAL_TAB_CONFIG);
+            continue;
+          }
+          const round = findRoundTypeByName(roundTypes, name);
+          if (!round) continue;
+          if (usedIds.has(round.ID)) continue;
+          usedIds.add(round.ID);
+          configs.push(createTabConfigFromRound(round, name));
+        }
+        return configs;
+      }
+      function renderTabBar() {
+        const tabBar = getTabBarElement();
+        tabBar.innerHTML = '';
+        tabConfigByKey = new Map(tabConfigs.map((cfg) => [cfg.key, cfg]));
+        for (const config of tabConfigs) {
+          const tab = document.createElement('div');
+          tab.className = 'tab-item';
+          tab.textContent = config.label;
+          tab.dataset.key = config.key;
+          tab.addEventListener('click', () => selectTabByKey(config.key));
+          tabBar.appendChild(tab);
+        }
+      }
+      function enableTabBarWheelScroll() {
+        const tabBar = getTabBarElement();
+        tabBar.addEventListener('wheel', (e) => {
+          if (e.deltaY !== 0) {
+            e.preventDefault();
+            tabBar.scrollLeft += e.deltaY;
+          }
+        }, { passive: false });
+      }
       async function loadRoundTypes() {
         try {
-          const resp = await fetch('assets/Roundtype.json');
-          const data = await resp.json();
-          roundTypes = data;
-          const tabBar = document.getElementById('tab-bar');
-          tabBar.innerHTML = '';
-
-          // Build tabs in a specific order requested by the user.
-          // Note: names are matched case-insensitively against Roundtype.json entries.
-          const desiredOrder = [
-            'Classic',
-            'Alternate',
-            '8 Pages',
-            'Fog',
-            'Ghost',
-            'Punished',
-            'Sabotage',
-            'Bloodbath',
-            'Cracked',
-            'Midnight',
-            'Unbound',
-            'Double Trouble',
-            'EX',
-            'Special'
-          ];
-
-          // Special group should include these round IDs (from Roundtype.json):
-          const specialIds = [100, 101, 102, 103, 104, 106, 107];
-
-          // Helper to find a round type entry by name (case-insensitive)
-          function findRoundByName(name) {
-            const lname = String(name).toLowerCase();
-            return data.find(rt => String(rt.Name).toLowerCase() === lname);
+          const [roundTypes] = await Promise.all([
+            fetchJson(ROUNDTYPE_PATH),
+            loadTerrors()
+          ]);
+          tabConfigs = buildTabConfigs(roundTypes);
+          renderTabBar();
+          if (tabConfigs.length > 0) {
+            selectTabByKey(tabConfigs[0].key);
+          } else {
+            getTabBarElement().textContent = 'No round types found';
           }
-
-          desiredOrder.forEach((name) => {
-            if (name === 'Special') {
-              const tab = document.createElement('div');
-              tab.className = 'tab-item';
-              tab.textContent = 'Special';
-              tab.dataset.special = 'true';
-              tab.dataset.ids = specialIds.join(',');
-              tab.dataset.categories = ['Icon_Variant','Icon_Variant_Skip','Moon_Special','Special_Round'].join(',');
-              tab.addEventListener('click', () => selectTab(tab));
-              tabBar.appendChild(tab);
-              return;
-            }
-
-            const match = findRoundByName(name);
-            if (match) {
-              const tab = document.createElement('div');
-              tab.className = 'tab-item';
-              tab.textContent = match.Name;
-              if (match.ID === 2) {
-                tab.dataset.ids = '2,52';
-              } else if (match.ID === 9) {
-                tab.dataset.ids = '9,53';
-              } else if (match.ID === 51) {
-                // Alternate tab: show Alternate-category entries, check all Alternate sub-rounds
-                tab.dataset.ids = '50,51,52,53,105';
-              } else {
-                tab.dataset.id = match.ID;
-              }
-              // Determine which terror categories to show for this tab
-              const categoryMap = {
-                'Classic': ['Classic'],
-                'Alternate': ['Alternate'],
-                '8 Pages': ['Classic','8Page_Special'],
-                'Fog': ['Classic','Alternate'],
-                'Ghost': ['Classic','Alternate'],
-                'Punished': ['Classic'],
-                'Sabotage': ['Classic'],
-                'Bloodbath': ['Classic'],
-                'Cracked': ['Classic'],
-                'Midnight': ['Classic'],
-                'Unbound': ['Unbound'],
-                'Double Trouble': ['Classic'],
-                'EX': ['Classic'],
-              };
-              const cats = categoryMap[name];
-              if (cats) tab.dataset.categories = cats.join(',');
-              tab.addEventListener('click', () => selectTab(tab));
-              tabBar.appendChild(tab);
-            } else {
-              // If exact name not found, try a substring match (fallback)
-              const lname = String(name).toLowerCase();
-              const fuzzy = data.find(rt => String(rt.Name).toLowerCase().includes(lname) || lname.includes(String(rt.Name).toLowerCase()));
-              if (fuzzy) {
-                const tab = document.createElement('div');
-                tab.className = 'tab-item';
-                tab.textContent = fuzzy.Name;
-                tab.dataset.id = fuzzy.ID;
-                tab.addEventListener('click', () => selectTab(tab));
-                tabBar.appendChild(tab);
-              }
-            }
-          });
-
-          // Add mouse wheel scroll support for tab bar
-          tabBar.addEventListener('wheel', (e) => {
-            // Only handle vertical wheel events for horizontal scrolling
-            if (e.deltaY !== 0) {
-              e.preventDefault();
-              tabBar.scrollLeft += e.deltaY;
-            }
-            // Allow horizontal wheel/trackpad events to work naturally
-          }, { passive: false });
-
-          // Load terrors data
-          await loadTerrors();
-
-          // Select the first tab by default (if any)
-          const firstTab = tabBar.querySelector('.tab-item');
-          if (firstTab) selectTab(firstTab);
         } catch (e) {
-          const tabBar = document.getElementById('tab-bar');
+          const tabBar = getTabBarElement();
           tabBar.textContent = 'Failed to load round types';
           console.error(e);
         }
       }
-
-      function buildRoundsMap() {
-        terrorRoundsMap = {};
-        for (const rt of roundTerrors) {
-          if (!terrorRoundsMap[rt.terrorId]) terrorRoundsMap[rt.terrorId] = [];
-          terrorRoundsMap[rt.terrorId].push(rt.roundId);
-        }
-      }
-
-      function getTerrorRounds(terrorId) {
-        return terrorRoundsMap[terrorId] || [];
-      }
-
       async function loadTerrors() {
         try {
-          const [terrResp, rtResp, varResp] = await Promise.all([
-            fetch('assets/terrors.json'),
-            fetch('assets/round_terrors.json'),
-            fetch('assets/variants.json')
-          ]);
-          terrorsData = await terrResp.json();
-          roundTerrors = await rtResp.json();
-          variantsData = await varResp.json();
-          buildRoundsMap();
+          terrorsData = await fetchJson(TERRORS_PATH);
+          trackerKeyToTerror = {};
+          replacedByMap = {};
+          for (const terror of terrorsData) {
+            if (terror.trackerKey) {
+              trackerKeyToTerror[terror.trackerKey] = terror;
+            }
+            if (!Array.isArray(terror.replaces)) continue;
+            for (const rep of terror.replaces) {
+              if (!replacedByMap[rep.baseName]) replacedByMap[rep.baseName] = [];
+              replacedByMap[rep.baseName].push({ replacer: terror, rounds: rep.rounds || [] });
+            }
+          }
         } catch (e) {
           console.error('Failed to load data:', e);
           terrorsData = [];
-          roundTerrors = [];
-          variantsData = [];
-          terrorRoundsMap = {};
+          trackerKeyToTerror = {};
+          replacedByMap = {};
         }
       }
-
-      // Section configuration: which tracker section maps to which modes and round IDs
-      const sectionConfig = {
-        'terrors': {
-          'classic': [1],
-          'fog': [2],
-          'punished': [3],
-          'sabotage': [4],
-          'cracked': [5],
-          'bloodbath': [6, 7, 8],
-          'ghost': [9],
-          'unbounds': [10],
-          'midnight': [50],
-          'alternate': [51],
-          'alternates': [52, 53],   // tracker mode 'alternates' → Fog_Alt/Ghost_Alt
-          '8pages': [105],
-        },
-        'alternates': {
-          'alternate': [51],
-          'alternates': [52, 53],   // top-level alternates section fallback
-          'state': [52, 53],        // flat entry with 'state' mode
-          'survived': [52, 53],     // flat entry with 'survived' key
-          'midnight': [50],
-          'fog': [52],
-          'ghost': [53],
-          '8pages': [105],
-        },
-        'unbounds': {
-          'state': [10],
-        },
-        'moons': {
-          'state': [100, 101, 102, 103, 104, 106, 107],
-        },
-        'specials': {
-          'state': '__use_entry_rounds__',  // use the entry's own AppearsInRounds
-        },
-        'variants_8pages': {
-          '8pages': [105],
-        },
-        'variants_misc': {
-          'state': [100, 101, 102, 103, 104, 106, 107],
-        },
-        'variants_cracked': {
-          'state': [5],
-        },
-        'variants_midnight': {
-          'state': [50],
-        },
-      };
-
       function isStatusChecked(status) {
         if (typeof status === 'string') {
-          return status === 'survived' || status === 'survived_ex' || status === 'survived_possessed' || status === 'achieved' || status === 'possessed';
+          return status === 'survived'
+            || status === 'survived_ex'
+            || status === 'survived_possessed'
+            || status === 'achieved'
+            || status === 'possessed';
         }
         if (typeof status === 'object' && status !== null) {
-          return status.survived === true || status.survived_ex === true || status.survived_possessed === true || status.achieved === true || status.possessed === true;
+          return status.survived === true
+            || status.survived_ex === true
+            || status.survived_possessed === true
+            || status.achieved === true
+            || status.possessed === true;
         }
-        if (typeof status === 'boolean') return status;
-        return false;
+        return typeof status === 'boolean' ? status : false;
       }
-
+      function getEntriesToProcess(entryData) {
+        if (typeof entryData === 'string' || typeof entryData === 'boolean') {
+          return [['state', entryData]];
+        }
+        if (typeof entryData === 'object' && entryData !== null) {
+          return Object.entries(entryData);
+        }
+        return [];
+      }
+      function resolveRoundIds(modeMap, mode, terror) {
+        let roundIds = modeMap[mode];
+        if (roundIds === '__use_entry_rounds__') {
+          roundIds = Array.isArray(terror.appearsInRounds) ? terror.appearsInRounds : [];
+        }
+        return Array.isArray(roundIds) ? roundIds : null;
+      }
+      function applyRoundCheck(state, terrorName, roundId, checked) {
+        if (!state[terrorName]) state[terrorName] = {};
+        const roundKey = String(roundId);
+        const prev = state[terrorName][roundKey];
+        // If multiple sections write the same target, keep true if any source is true.
+        if (checked) {
+          state[terrorName][roundKey] = true;
+        } else if (prev === undefined) {
+          state[terrorName][roundKey] = false;
+        }
+      }
+      function applyReplacerChecks(state, terror, roundId, checked) {
+        const replacers = replacedByMap[terror.Name];
+        if (!replacers) return;
+        for (const rep of replacers) {
+          if (!Array.isArray(rep.rounds) || !rep.rounds.includes(roundId)) continue;
+          applyRoundCheck(state, rep.replacer.Name, roundId, checked);
+        }
+      }
+      function buildImportState(trackerData) {
+        const state = {};
+        for (const section of IMPORT_SECTIONS) {
+          const sectionData = trackerData[section];
+          if (!sectionData) continue;
+          const modeMap = sectionConfig[section];
+          if (!modeMap) continue;
+          for (const [trackerKey, entryData] of Object.entries(sectionData)) {
+            const terror = trackerKeyToTerror[trackerKey];
+            if (!terror) continue;
+            for (const [mode, status] of getEntriesToProcess(entryData)) {
+              if (IMPORT_IGNORE_MODES.has(mode)) continue;
+              const roundIds = resolveRoundIds(modeMap, mode, terror);
+              if (!roundIds || roundIds.length === 0) continue;
+              const checked = isStatusChecked(status);
+              for (const roundId of roundIds) {
+                applyRoundCheck(state, terror.Name, roundId, checked);
+                applyReplacerChecks(state, terror, roundId, checked);
+              }
+            }
+          }
+        }
+        return state;
+      }
+      async function gunzipBytes(bytes) {
+        if (typeof DecompressionStream === 'undefined') {
+          throw new Error('DecompressionStream not available');
+        }
+        const ds = new DecompressionStream('gzip');
+        const writer = ds.writable.getWriter();
+        await writer.write(bytes);
+        await writer.close();
+        const reader = ds.readable.getReader();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const merged = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+        return new TextDecoder().decode(merged);
+      }
+      async function decodeImportFile(file) {
+        const text = await file.text();
+        const normalized = text.replace(/\s+/g, '');
+        const raw = atob(normalized);
+        const numbers = raw.split(',')
+          .map((value) => Number.parseInt(value, 10))
+          .filter((value) => Number.isFinite(value) && value >= 0 && value <= 255);
+        if (numbers.length === 0) {
+          throw new Error('Invalid import format');
+        }
+        const bytes = Uint8Array.from(numbers);
+        const jsonStr = await gunzipBytes(bytes);
+        return JSON.parse(jsonStr);
+      }
       async function importFromFile(file) {
         try {
-          const text = await file.text();
-          const rawStr = atob(text.trim());
-          const nums = rawStr.split(',').map(s => parseInt(s, 10));
-          const bytes = new Uint8Array(nums);
-
-          let jsonStr;
-          if (typeof DecompressionStream !== 'undefined') {
-            const ds = new DecompressionStream('gzip');
-            const writer = ds.writable.getWriter();
-            writer.write(bytes);
-            writer.close();
-            const reader = ds.readable.getReader();
-            const chunks = [];
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-            }
-            const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
-            const merged = new Uint8Array(totalLen);
-            let offset = 0;
-            for (const c of chunks) {
-              merged.set(c, offset);
-              offset += c.length;
-            }
-            jsonStr = new TextDecoder().decode(merged);
-          } else {
-            throw new Error('DecompressionStream not available');
-          }
-
-          const trackerData = JSON.parse(jsonStr);
-
-          // Load tracker map
-          const mapResp = await fetch('assets/tracker_map.json');
-          const trackerMap = await mapResp.json();
-
-          // Build id -> name lookup
-          const idToName = {};
-          for (const t of terrorsData) {
-            idToName[t.id] = t.Name;
-          }
-
-          // Build import data from ALL sections
-          const newData = {};
-          const sections = ['terrors', 'alternates', 'unbounds', 'moons', 'specials',
-                            'variants_8pages', 'variants_misc', 'variants_cracked', 'variants_midnight'];
-
-          for (const section of sections) {
-            const secData = trackerData[section];
-            if (!secData) continue;
-            const modeMap = sectionConfig[section];
-            if (!modeMap) continue;
-
-                for (const [trackerKey, tdata] of Object.entries(secData)) {
-                  const ids = trackerMap[trackerKey];
-                  if (!Array.isArray(ids)) continue;
-                  for (const id of ids) {
-                    const name = idToName[id];
-                    if (!name) continue;
-                    if (!newData[name]) newData[name] = {};
-
-                    // Handle both flat entries (string/boolean) and nested entries (object)
-                    let entriesToProcess = [];
-                    if (typeof tdata === 'string' || typeof tdata === 'boolean') {
-                      entriesToProcess = [['state', tdata]];
-                    } else if (typeof tdata === 'object' && tdata !== null) {
-                      entriesToProcess = Object.entries(tdata);
-                    } else {
-                      continue;
-                    }
-
-                    for (const [mode, status] of entriesToProcess) {
-                      if (mode === 'seen' || mode === 'variant' || mode === 'from_default' || mode === 'default' || mode === 'locked_variants') continue;
-                      let roundIds = modeMap[mode];
-                      if (roundIds === '__use_entry_rounds__') {
-                        const t = terrorsData.find(e => e.Name === name);
-                        roundIds = t ? getTerrorRounds(t.id) : null;
-                        if (roundIds && roundIds.length === 0) roundIds = null;
-                      }
-                      if (!roundIds) continue;
-                      const checked = isStatusChecked(status);
-                      for (const rid of roundIds) {
-                        newData[name][String(rid)] = checked;
-                      }
-                    }
-                  }
-                }
-          }
-
-          importData = newData;
-
-          // Re-render current tab
+          const trackerData = await decodeImportFile(file);
+          importData = buildImportState(trackerData);
           const currentTab = document.querySelector('.tab-item.active');
-          if (currentTab) {
-            selectTab(currentTab);
+          if (currentTab && currentTab.dataset.key) {
+            selectTabByKey(currentTab.dataset.key);
           }
-
-          console.log('Import complete:', Object.keys(importData).length, 'terrors loaded from', sections.length, 'sections');
+          console.log('Import complete:', Object.keys(importData).length, 'terrors loaded');
         } catch (e) {
           console.error('Import failed:', e);
           alert('Import failed: ' + e.message);
         }
       }
-
-      function selectTab(tabOrId, maybeName) {
-        // Allow calling with either (element) or (id, name)
-        let tabElement = null;
-        let roundIds = [];
-        let allowedCategories = null;
-
-        if (tabOrId && typeof tabOrId === 'object' && tabOrId.classList && tabOrId.classList.contains('tab-item')) {
-          tabElement = tabOrId;
-          if (tabElement.dataset.ids) {
-            roundIds = String(tabElement.dataset.ids).split(',').map(s => parseInt(s, 10)).filter(Boolean);
-          } else if (tabElement.dataset.id) {
-            roundIds = [parseInt(tabElement.dataset.id, 10)];
-          }
-          if (tabElement.dataset.categories) {
-            allowedCategories = tabElement.dataset.categories.split(',');
-          }
-        } else {
-          // old signature: (id, name)
-          const id = tabOrId;
-          const el = Array.from(document.querySelectorAll('.tab-item')).find(t => t.dataset.id == id);
-          if (el) tabElement = el;
-          roundIds = [parseInt(id, 10)];
-        }
-
-        // Update active tab styling
-        document.querySelectorAll('.tab-item').forEach(tab => {
-          if (tab === tabElement) tab.classList.add('active'); else tab.classList.remove('active');
-        });
-
-        activeTab = tabElement ? (tabElement.dataset.ids || tabElement.dataset.id || 'special') : null;
-
-        // Update content area with terrors for this round(s)
-        const contentArea = document.getElementById('content-area');
-        contentArea.innerHTML = '';
-
-        // Get all terrors that belong to the allowed categories
-        let terrorsToShow = [];
-        if (allowedCategories) {
-          terrorsToShow = terrorsData.filter(t => {
-            const cat = t.category || 'Classic';
-            return allowedCategories.includes(cat);
-          });
-        } else {
-          // Fallback: filter by round_terrors
-          terrorsToShow = terrorsData.filter(t => {
-            const arr = getTerrorRounds(t.id);
-            return roundIds.some(rid => arr.includes(rid));
-          });
-        }
-
-        if (terrorsToShow.length === 0) {
-          contentArea.innerHTML = `<p style="color: #888;">No terrors configured for this round.</p>`;
-          return;
-        }
-
-        // Create checkboxes for each terror
-        terrorsToShow.forEach(terror => {
-          const arr = getTerrorRounds(terror.id);
-          const hasRound = roundIds.some(rid => arr.includes(rid));
-
-          const div = document.createElement('div');
-          div.className = 'round-item';
-          if (!hasRound) div.classList.add('banned');
-
-          const label = document.createElement('label');
-          // Banned terrors: label not clickable
-          if (!hasRound) label.style.cursor = 'default';
-
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.dataset.terrorName = terror.Name;
-          checkbox.dataset.roundIds = roundIds.join(',');
-
-          if (!hasRound) {
-            checkbox.disabled = true;
-          } else {
-            // Apply import data if available
-            if (importData && importData[terror.Name]) {
-              const anyChecked = roundIds.some(rid => importData[terror.Name][String(rid)] === true);
-              checkbox.checked = anyChecked;
-            }
-          }
-
-          label.appendChild(checkbox);
-          label.appendChild(document.createTextNode(' ' + terror.Name));
-
-          div.appendChild(label);
-          contentArea.appendChild(div);
+      function terrorAppearsInAnyRound(terror, roundIds) {
+        if (!Array.isArray(terror.appearsInRounds)) return false;
+        return roundIds.some((roundId) => terror.appearsInRounds.includes(roundId));
+      }
+      function terrorReplacesInAnyRound(terror, roundIds) {
+        if (!Array.isArray(terror.replaces)) return false;
+        return terror.replaces.some((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => roundIds.includes(roundId)));
+      }
+      function terrorIsInCategoryTabScope(terror, tabConfig) {
+        const allowedTabs = CATEGORY_TAB_SCOPE[terror.category];
+        if (!allowedTabs) return false;
+        return allowedTabs.has(tabConfig.key);
+      }
+      function terrorActsAsReplacerInTab(terror, tabConfig) {
+        if (tabConfig.isSpecial) return false;
+        return terrorReplacesInAnyRound(terror, tabConfig.roundIds);
+      }
+      function hasValidTerrorShape(terror) {
+        return terror
+          && typeof terror.Name === 'string'
+          && terror.Name.trim().length > 0
+          && (Array.isArray(terror.appearsInRounds) || Array.isArray(terror.replaces));
+      }
+      function getTerrorsForTab(tabConfig) {
+        const { roundIds } = tabConfig;
+        const seenNames = new Set();
+        return terrorsData.filter((terror) => {
+          if (!hasValidTerrorShape(terror)) return false;
+          if (terrorActsAsReplacerInTab(terror, tabConfig)) return false;
+          const appears = terrorAppearsInAnyRound(terror, roundIds);
+          const inCategoryScope = terrorIsInCategoryTabScope(terror, tabConfig);
+          if (!appears && !inCategoryScope) return false;
+          const normalized = normalizeName(terror.Name);
+          if (seenNames.has(normalized)) return false;
+          seenNames.add(normalized);
+          return true;
         });
       }
-
-      window.addEventListener('DOMContentLoaded', () => {
-        loadRoundTypes();
-
-        const importBtn = document.getElementById('import-btn');
-        if (importBtn) {
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.accept = '.txt';
-          fileInput.style.display = 'none';
-          document.body.appendChild(fileInput);
-
-          importBtn.addEventListener('click', () => fileInput.click());
-          fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              await importFromFile(file);
-            }
-            fileInput.value = '';
-          });
+      function terrorHasRound(terror, roundIds) {
+        return Array.isArray(terror.appearsInRounds)
+          && roundIds.some((roundId) => terror.appearsInRounds.includes(roundId));
+      }
+      function createTerrorLabel(terror, tabConfig) {
+        let displayName = terror.Name;
+        if (tabConfig.isSpecial) return displayName;
+        const replacers = replacedByMap[terror.Name];
+        if (!replacers) return displayName;
+        const names = replacers
+          .filter((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => tabConfig.roundIds.includes(roundId)))
+          .map((rep) => rep.replacer.Name);
+        if (names.length > 0) {
+          displayName += ` (${names.join(', ')})`;
         }
+        return displayName;
+      }
+      function createTerrorRow(terror, tabConfig) {
+        const hasRound = terrorHasRound(terror, tabConfig.roundIds);
+        const row = document.createElement('div');
+        row.className = 'round-item';
+        if (!hasRound) row.classList.add('banned');
+        const label = document.createElement('label');
+        if (!hasRound) label.style.cursor = 'default';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.terrorName = terror.Name;
+        checkbox.dataset.roundIds = tabConfig.roundIds.join(',');
+        checkbox.disabled = !hasRound;
+        if (hasRound && importData && importData[terror.Name]) {
+          checkbox.checked = tabConfig.roundIds.some((roundId) => importData[terror.Name][String(roundId)] === true);
+        }
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(` ${createTerrorLabel(terror, tabConfig)}`));
+        row.appendChild(label);
+        return row;
+      }
+      function renderTabContent(tabConfig) {
+        const contentArea = getContentAreaElement();
+        contentArea.innerHTML = '';
+        const terrors = getTerrorsForTab(tabConfig);
+        if (terrors.length === 0) {
+          contentArea.innerHTML = '<p style="color: #888;">No terrors configured for this round.</p>';
+          return;
+        }
+        for (const terror of terrors) {
+          contentArea.appendChild(createTerrorRow(terror, tabConfig));
+        }
+      }
+      function selectTabByKey(tabKey) {
+        const tabConfig = tabConfigByKey.get(tabKey);
+        if (!tabConfig) return;
+        document.querySelectorAll('.tab-item').forEach((tab) => {
+          tab.classList.toggle('active', tab.dataset.key === tabKey);
+        });
+        renderTabContent(tabConfig);
+      }
+      function setupImportButton() {
+        const importBtn = document.getElementById('import-btn');
+        if (!importBtn) return;
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        importBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (event) => {
+          const file = event.target.files[0];
+          if (file) {
+            await importFromFile(file);
+          }
+          fileInput.value = '';
+        });
+      }
+      window.addEventListener('DOMContentLoaded', () => {
+        enableTabBarWheelScroll();
+        setupImportButton();
+        loadRoundTypes();
       });
     </script>
   </body>
