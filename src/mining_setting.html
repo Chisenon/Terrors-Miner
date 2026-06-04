@@ -244,7 +244,7 @@
           '8pages': [105]
         },
         variants_misc: {
-          state: [100, 101, 102, 103, 104, 106, 107]
+          state: '__use_entry_rounds__'
         },
         variants_cracked: {
           state: [5]
@@ -424,6 +424,14 @@
           for (const terror of terrorsData) {
             if (terror.trackerKey) {
               trackerKeyToTerror.set(terror.trackerKey, terror);
+            }
+            if (Array.isArray(terror.legacyTrackerKeys)) {
+              for (const legacyKey of terror.legacyTrackerKeys) {
+                if (typeof legacyKey !== 'string' || legacyKey.length === 0) continue;
+                if (!trackerKeyToTerror.has(legacyKey)) {
+                  trackerKeyToTerror.set(legacyKey, terror);
+                }
+              }
             }
             if (!Array.isArray(terror.replaces)) continue;
             for (const rep of terror.replaces) {

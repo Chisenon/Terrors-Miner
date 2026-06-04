@@ -235,6 +235,7 @@
     "Name": "Luigi \u0026 Luigi Dolls",
     "category": "Classic",
     "trackerKey": "luigi",
+    "legacyTrackerKeys": ["luigi_and_luigi_dolls"],
     "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
   },
   {
@@ -578,6 +579,7 @@
     "Name": "All-Around-Helpers",
     "category": "Classic",
     "trackerKey": "all-around-helper",
+    "legacyTrackerKeys": ["all-around-helpers"],
     "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
   },
   {
@@ -606,6 +608,7 @@
     "Name": "Miros Birds",
     "category": "Classic",
     "trackerKey": "miros_bird",
+    "legacyTrackerKeys": ["miros_birds"],
     "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
   },
   {
