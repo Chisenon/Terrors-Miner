@@ -204,6 +204,49 @@
         background: #0f0f0f;
       }
 
+      .action-btn {
+        width: 44px;
+        height: 44px;
+        padding: 2px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        color: #ccc;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 15px;
+        line-height: 1.2;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .action-btn:hover {
+        background: #3a3a3a;
+        border-color: #5a7f85;
+        color: #fff;
+      }
+
+      .right-section-title {
+        flex-shrink: 0;
+        background: #2a3a3d;
+        color: var(--color-light);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .right-list {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 4px 6px;
+        font-size: 11px;
+        color: #aaa;
+      }
+
       .right-bottom {
         flex: 1;
         display: flex;
@@ -230,19 +273,24 @@
         color: #aaa;
       }
 
-      .square-btn {
-        width: 40px;
-        height: 40px;
+      .action-btn {
+        min-width: 0;
+        flex: 1;
+        padding: 6px 4px;
         background: #2a2a2a;
         border: 1px solid #444;
+        color: #ccc;
         cursor: pointer;
-        padding: 0;
-        flex-shrink: 0;
+        font-size: 10px;
+        font-family: inherit;
+        white-space: nowrap;
+        text-align: center;
       }
 
-      .square-btn:hover {
+      .action-btn:hover {
         background: #3a3a3a;
         border-color: #5a7f85;
+        color: #fff;
       }
 
       .import-bar {
@@ -342,10 +390,11 @@
                 <div id="selected-terrors-list" class="right-list">No terrors selected</div>
               </div>
               <div class="right-middle">
-                <button class="square-btn"></button>
-                <button class="square-btn"></button>
-                <button class="square-btn"></button>
-                <button class="square-btn"></button>
+                <button class="action-btn">Auto<br>jump</button>
+                <button class="action-btn">Auto<br>start</button>
+                <button class="action-btn">DTM</button>
+                <button class="action-btn">Action<br>Macro</button>
+                <button class="action-btn">?</button>
               </div>
               <div class="right-bottom">
                 <div class="right-section-title">Log Summary</div>
@@ -643,16 +692,17 @@
       }
       function isStatusChecked(status) {
         if (typeof status === 'string') {
-          return POSITIVE_STATUS_STRINGS.has(status);
+          return !POSITIVE_STATUS_STRINGS.has(status);
         }
         if (typeof status === 'object' && status !== null) {
-          return status.survived === true
+          const isPositive = status.survived === true
             || status.survived_ex === true
             || status.survived_possessed === true
             || status.achieved === true
             || status.possessed === true;
+          return !isPositive;
         }
-        return typeof status === 'boolean' ? status : false;
+        return typeof status === 'boolean' ? !status : true;
       }
       function getEntriesToProcess(entryData) {
         if (typeof entryData === 'string' || typeof entryData === 'boolean') {
