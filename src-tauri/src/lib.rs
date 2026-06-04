@@ -1,10 +1,14 @@
 use std::process::Command;
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::Mutex;
+use std::io::Read;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sysinfo::{System, Pid};
 use std::thread;
 use std::time::Duration;
+use base64::Engine;
+use flate2::read::GzDecoder;
 
 use once_cell::sync::Lazy;
 static VRCHAT_PROCESSES: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::new(HashMap::new()));
@@ -359,7 +363,8 @@ pub fn run() {
             get_running_vrchat,
             debug_vrchat_processes,
             is_eac_launcher_running,
-            create_sub_window
+            create_sub_window,
+            decode_tracker_import
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -391,4 +396,33 @@ async fn create_sub_window(app: tauri::AppHandle) -> Result<(), String> {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Failed to create sub-window: {}", e)),
     }
+}
+
+#[tauri::command]
+fn decode_tracker_import(encoded: String) -> Result<Value, String> {
+    let cleaned: String = encoded.chars().filter(|c| !c.is_whitespace()).collect();
+    let raw_bytes = base64::engine::general_purpose::STANDARD
+        .decode(cleaned)
+        .map_err(|e| format!("Base64 decode failed: {e}"))?;
+    let raw_text = String::from_utf8(raw_bytes)
+        .map_err(|e| format!("Decoded text is not UTF-8: {e}"))?;
+
+    let numbers: Vec<u8> = raw_text
+        .split(',')
+        .filter_map(|s| s.trim().parse::<u16>().ok())
+        .filter(|n| *n <= 255)
+        .map(|n| n as u8)
+        .collect();
+    if numbers.is_empty() {
+        return Err("No byte payload found in import data".to_string());
+    }
+
+    let mut decoder = GzDecoder::new(&numbers[..]);
+    let mut json_text = String::new();
+    decoder
+        .read_to_string(&mut json_text)
+        .map_err(|e| format!("Gzip decode failed: {e}"))?;
+
+    serde_json::from_str::<Value>(&json_text)
+        .map_err(|e| format!("JSON parse failed: {e}"))
 }

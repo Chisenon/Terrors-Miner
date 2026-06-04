@@ -259,6 +259,7 @@
       let importData = null;
       let tabConfigs = [];
       let tabConfigByKey = new Map();
+      let initialLoadPromise = null;
       function getTabBarElement() {
         return document.getElementById('tab-bar');
       }
@@ -273,6 +274,12 @@
           throw new Error(`Failed to load ${path}: HTTP ${resp.status}`);
         }
         return resp.json();
+      }
+      async function tauriInvoke(cmd, args = {}) {
+        if (!window.__TAURI__ || !window.__TAURI__.core || !window.__TAURI__.core.invoke) {
+          throw new Error('Tauri invoke is not available');
+        }
+        return window.__TAURI__.core.invoke(cmd, args);
       }
       function normalizeName(name) {
         return String(name || '').toLowerCase();
@@ -411,15 +418,16 @@
         }
         return Array.isArray(roundIds) ? roundIds : null;
       }
-      function applyRoundCheck(state, terrorName, roundId, checked) {
-        if (!state[terrorName]) state[terrorName] = {};
+      function applyRoundCheck(state, terrorKey, roundId, checked) {
+        if (!terrorKey) return;
+        if (!state[terrorKey]) state[terrorKey] = {};
         const roundKey = String(roundId);
-        const prev = state[terrorName][roundKey];
+        const prev = state[terrorKey][roundKey];
         // If multiple sections write the same target, keep true if any source is true.
         if (checked) {
-          state[terrorName][roundKey] = true;
+          state[terrorKey][roundKey] = true;
         } else if (prev === undefined) {
-          state[terrorName][roundKey] = false;
+          state[terrorKey][roundKey] = false;
         }
       }
       function applyReplacerChecks(state, terror, roundId, checked) {
@@ -427,7 +435,7 @@
         if (!replacers) return;
         for (const rep of replacers) {
           if (!Array.isArray(rep.rounds) || !rep.rounds.includes(roundId)) continue;
-          applyRoundCheck(state, rep.replacer.Name, roundId, checked);
+          applyRoundCheck(state, rep.replacer.trackerKey, roundId, checked);
         }
       }
       function buildImportState(trackerData) {
@@ -446,7 +454,7 @@
               if (!roundIds || roundIds.length === 0) continue;
               const checked = isStatusChecked(status);
               for (const roundId of roundIds) {
-                applyRoundCheck(state, terror.Name, roundId, checked);
+                applyRoundCheck(state, terror.trackerKey, roundId, checked);
                 applyReplacerChecks(state, terror, roundId, checked);
               }
             }
@@ -480,27 +488,37 @@
       }
       async function decodeImportFile(file) {
         const text = await file.text();
-        const normalized = text.replace(/\s+/g, '');
-        const raw = atob(normalized);
-        const numbers = raw.split(',')
-          .map((value) => Number.parseInt(value, 10))
-          .filter((value) => Number.isFinite(value) && value >= 0 && value <= 255);
-        if (numbers.length === 0) {
-          throw new Error('Invalid import format');
+        try {
+          // Primary path: decode in Rust for stable behavior across WebView versions.
+          return await tauriInvoke('decode_tracker_import', { encoded: text });
+        } catch (_tauriError) {
+          // Fallback path for non-Tauri preview/debug environments.
+          const normalized = text.replace(/\s+/g, '');
+          const raw = atob(normalized);
+          const numbers = raw.split(',')
+            .map((value) => Number.parseInt(value, 10))
+            .filter((value) => Number.isFinite(value) && value >= 0 && value <= 255);
+          if (numbers.length === 0) {
+            throw new Error('Invalid import format');
+          }
+          const bytes = Uint8Array.from(numbers);
+          const jsonStr = await gunzipBytes(bytes);
+          return JSON.parse(jsonStr);
         }
-        const bytes = Uint8Array.from(numbers);
-        const jsonStr = await gunzipBytes(bytes);
-        return JSON.parse(jsonStr);
       }
       async function importFromFile(file) {
         try {
+          if (initialLoadPromise) {
+            await initialLoadPromise;
+          }
           const trackerData = await decodeImportFile(file);
           importData = buildImportState(trackerData);
           const currentTab = document.querySelector('.tab-item.active');
           if (currentTab && currentTab.dataset.key) {
             selectTabByKey(currentTab.dataset.key);
+          } else if (tabConfigs.length > 0) {
+            selectTabByKey(tabConfigs[0].key);
           }
-          console.log('Import complete:', Object.keys(importData).length, 'terrors loaded');
         } catch (e) {
           console.error('Import failed:', e);
           alert('Import failed: ' + e.message);
@@ -570,16 +588,31 @@
         if (!hasRound) label.style.cursor = 'default';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.dataset.terrorName = terror.Name;
+        checkbox.dataset.trackerKey = terror.trackerKey || '';
         checkbox.dataset.roundIds = tabConfig.roundIds.join(',');
-        checkbox.disabled = !hasRound;
-        if (hasRound && importData && importData[terror.Name]) {
-          checkbox.checked = tabConfig.roundIds.some((roundId) => importData[terror.Name][String(roundId)] === true);
+        if (importData && terror.trackerKey && importData[terror.trackerKey]) {
+          checkbox.checked = tabConfig.roundIds.some((roundId) => importData[terror.trackerKey][String(roundId)] === true);
+        }
+        if (!hasRound) {
+          checkbox.addEventListener('click', (event) => event.preventDefault());
         }
         label.appendChild(checkbox);
         label.appendChild(document.createTextNode(` ${createTerrorLabel(terror, tabConfig)}`));
         row.appendChild(label);
         return row;
+      }
+      function applyImportToRenderedCheckboxes() {
+        if (!importData) return;
+        const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
+        for (const checkbox of checkboxes) {
+          const trackerKey = checkbox.dataset.trackerKey;
+          const roundIds = String(checkbox.dataset.roundIds || '')
+            .split(',')
+            .map((v) => Number.parseInt(v, 10))
+            .filter((v) => Number.isFinite(v));
+          const terrorState = trackerKey ? importData[trackerKey] : null;
+          checkbox.checked = !!(terrorState && roundIds.some((roundId) => terrorState[String(roundId)] === true));
+        }
       }
       function renderTabContent(tabConfig) {
         const contentArea = getContentAreaElement();
@@ -600,6 +633,7 @@
           tab.classList.toggle('active', tab.dataset.key === tabKey);
         });
         renderTabContent(tabConfig);
+        applyImportToRenderedCheckboxes();
       }
       function setupImportButton() {
         const importBtn = document.getElementById('import-btn');
@@ -621,7 +655,7 @@
       window.addEventListener('DOMContentLoaded', () => {
         enableTabBarWheelScroll();
         setupImportButton();
-        loadRoundTypes();
+        initialLoadPromise = loadRoundTypes();
       });
     </script>
   </body>
