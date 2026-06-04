@@ -37,14 +37,23 @@
         overflow: hidden;
       }
 
+      .title-row {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        flex-shrink: 0;
+      }
+
       .section-title {
         background: #4a5f65;
         color: var(--color-light);
         padding: 4px 8px;
         font-weight: 600;
         font-size: 12px;
-        margin-bottom: 4px;
-        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
       }
 
       /* Tab bar - horizontal scrollable */
@@ -148,15 +157,47 @@
       #content-area .banned input[type="checkbox"] {
         opacity: 0.35;
       }
+
+      .import-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        background: #2a2a2a;
+        flex-shrink: 0;
+      }
+
+      .import-label {
+        color: #aaa;
+        font-size: 11px;
+      }
+
+      #import-btn {
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        background: #5a7f85;
+        color: #fff;
+        border: none;
+      }
+
+      #import-btn:hover {
+        background: #6a9fa5;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="main-content">
         <div class="list-section">
-          <div class="section-title">
-            <span id="section-title-text">Select Round Types And Terrors</span>
-            <button id="import-btn" style="float:right;font-size:11px;padding:2px 8px;cursor:pointer;background:#5a7f85;color:#fff;border:none;">Import</button>
+          <div class="title-row">
+            <div class="section-title">
+              <span id="section-title-text">Select Round Types And Terrors</span>
+            </div>
+            <div class="import-bar">
+              <span class="import-label">ToN Tracker Data :</span>
+              <button id="import-btn">Import</button>
+            </div>
           </div>
           <div id="tab-bar">Loading...</div>
           <div id="content-area">Select a round type to view details</div>
