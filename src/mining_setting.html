@@ -158,6 +158,93 @@
         opacity: 0.35;
       }
 
+      .split-container {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .split-left {
+        flex: 1;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .split-right {
+        flex: 1;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        border-left: 1px solid #333;
+      }
+
+      .right-top {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        border-bottom: 1px solid #333;
+      }
+
+      .right-middle {
+        flex-shrink: 0;
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        justify-content: center;
+        border-bottom: 1px solid #333;
+        background: #0f0f0f;
+      }
+
+      .right-bottom {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .right-section-title {
+        flex-shrink: 0;
+        background: #2a3a3d;
+        color: var(--color-light);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .right-list {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 4px 6px;
+        font-size: 11px;
+        color: #aaa;
+      }
+
+      .square-btn {
+        width: 40px;
+        height: 40px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        cursor: pointer;
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      .square-btn:hover {
+        background: #3a3a3a;
+        border-color: #5a7f85;
+      }
+
       .import-bar {
         display: flex;
         align-items: center;
@@ -244,8 +331,28 @@
             <span id="log-path-display" class="log-path">Loading...</span>
             <button id="log-select-btn" class="log-btn">Select Log File</button>
           </div>
-          <div id="tab-bar">Loading...</div>
-          <div id="content-area">Select a round type to view details</div>
+          <div class="split-container">
+            <div class="split-left">
+              <div id="tab-bar">Loading...</div>
+              <div id="content-area">Select a round type to view details</div>
+            </div>
+            <div class="split-right">
+              <div class="right-top">
+                <div class="right-section-title">Selected Terrors</div>
+                <div id="selected-terrors-list" class="right-list">No terrors selected</div>
+              </div>
+              <div class="right-middle">
+                <button class="square-btn"></button>
+                <button class="square-btn"></button>
+                <button class="square-btn"></button>
+                <button class="square-btn"></button>
+              </div>
+              <div class="right-bottom">
+                <div class="right-section-title">Log Summary</div>
+                <div id="log-summary-content" class="right-list">No data</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -347,6 +454,7 @@
       let tabConfigs = [];
       let tabConfigByKey = new Map();
       let initialLoadPromise = null;
+      let roundNameById = new Map();
       function getTabBarElement() {
         return document.getElementById('tab-bar');
       }
@@ -489,6 +597,7 @@
             fetchJson(ROUNDTYPE_PATH),
             loadTerrors()
           ]);
+          roundNameById = new Map(roundTypes.map(rt => [rt.ID, rt.Name]));
           tabConfigs = buildTabConfigs(roundTypes);
           renderTabBar();
           if (tabConfigs.length > 0) {
@@ -657,6 +766,7 @@
           const trackerData = await decodeImportFile(file);
           profileSettings = buildImportState(trackerData);
           await persistProfileSettings();
+          updateSelectedTerrors();
           const currentTab = document.querySelector('.tab-item.active');
           if (currentTab && currentTab.dataset.key) {
             selectTabByKey(currentTab.dataset.key);
@@ -744,6 +854,7 @@
             persistProfileSettings().catch((error) => {
               console.error('Failed to save profile settings:', error);
             });
+            updateSelectedTerrors();
           });
         }
         label.appendChild(checkbox);
@@ -835,6 +946,29 @@
           // not set yet
         }
       }
+      function updateSelectedTerrors() {
+        const listEl = document.getElementById('selected-terrors-list');
+        if (!listEl) return;
+        const lines = [];
+        for (const terror of terrorsData) {
+          const key = terror.trackerKey;
+          if (!key) continue;
+          const state = profileSettings[key];
+          if (!state) continue;
+          for (const [roundId, checked] of Object.entries(state)) {
+            if (checked) {
+              const name = roundNameById.get(Number(roundId)) || roundId;
+              lines.push({ round: Number(roundId), text: `${name} - ${terror.Name}` });
+            }
+          }
+        }
+        lines.sort((a, b) => a.round - b.round);
+        if (lines.length === 0) {
+          listEl.textContent = 'No terrors selected';
+          return;
+        }
+        listEl.innerHTML = lines.map(l => `<div>${l.text}</div>`).join('');
+      }
       async function initializePage() {
         activeProfile = parseProfileFromQuery();
         if (activeProfile !== null) {
@@ -847,6 +981,7 @@
         await loadSavedLogFile();
         await loadProfileSettings();
         await loadRoundTypes();
+        updateSelectedTerrors();
       }
       window.addEventListener('DOMContentLoaded', () => {
         enableTabBarWheelScroll();
