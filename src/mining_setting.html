@@ -184,6 +184,46 @@
       #import-btn:hover {
         background: #6a9fa5;
       }
+
+      .log-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background: #1a1a1a;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      .log-label {
+        color: #aaa;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .log-path {
+        flex: 1;
+        min-width: 0;
+        font-size: 11px;
+        color: #888;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .log-btn {
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        background: #5a7f85;
+        color: #fff;
+        border: none;
+        flex-shrink: 0;
+      }
+
+      .log-btn:hover {
+        background: #6a9fa5;
+      }
     </style>
   </head>
   <body>
@@ -195,9 +235,14 @@
               <span id="section-title-text">Select Round Types And Terrors</span>
             </div>
             <div class="import-bar">
-              <span class="import-label">ToN Tracker Data :</span>
+              <span class="import-label">Save Data Import</span>
               <button id="import-btn">Import</button>
             </div>
+          </div>
+          <div class="log-row">
+            <span class="log-label">VRChat Logs:</span>
+            <span id="log-path-display" class="log-path">Loading...</span>
+            <button id="log-select-btn" class="log-btn">Select Log File</button>
           </div>
           <div id="tab-bar">Loading...</div>
           <div id="content-area">Select a round type to view details</div>
@@ -756,6 +801,40 @@
           fileInput.value = '';
         });
       }
+      function setupLogSelector() {
+        const selectBtn = document.getElementById('log-select-btn');
+        const pathDisplay = document.getElementById('log-path-display');
+        if (!selectBtn || !pathDisplay) return;
+        pathDisplay.textContent = '';
+        pathDisplay.title = '';
+        selectBtn.addEventListener('click', async () => {
+          try {
+            const selected = await tauriInvoke('pick_vrchat_log_file');
+            if (selected && activeProfile !== null) {
+              const fileName = selected.split('\\').pop() || selected.split('/').pop() || selected;
+              pathDisplay.textContent = fileName;
+              pathDisplay.title = selected;
+              pathDisplay.style.color = '#ccc';
+              await tauriInvoke('set_profile_log_file', { profile: activeProfile, path: selected });
+            }
+          } catch (e) {
+            console.error('Failed to select log file:', e);
+          }
+        });
+      }
+      async function loadSavedLogFile() {
+        const pathDisplay = document.getElementById('log-path-display');
+        if (!pathDisplay || activeProfile === null) return;
+        try {
+          const savedPath = await tauriInvoke('get_profile_log_file', { profile: activeProfile });
+          const fileName = savedPath.split('\\').pop() || savedPath.split('/').pop() || savedPath;
+          pathDisplay.textContent = fileName;
+          pathDisplay.title = savedPath;
+          pathDisplay.style.color = '#ccc';
+        } catch {
+          // not set yet
+        }
+      }
       async function initializePage() {
         activeProfile = parseProfileFromQuery();
         if (activeProfile !== null) {
@@ -765,12 +844,14 @@
             sectionTitle.textContent = `Select Round Types And Terrors (Profile ${activeProfile})`;
           }
         }
+        await loadSavedLogFile();
         await loadProfileSettings();
         await loadRoundTypes();
       }
       window.addEventListener('DOMContentLoaded', () => {
         enableTabBarWheelScroll();
         setupImportButton();
+        setupLogSelector();
         initialLoadPromise = initializePage();
       });
     </script>

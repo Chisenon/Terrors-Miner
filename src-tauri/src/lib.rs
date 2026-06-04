@@ -17,10 +17,13 @@ static PENDING_PROFILES: Lazy<Mutex<VecDeque<u32>>> = Lazy::new(|| Mutex::new(Ve
 static MISSED_DETECTIONS: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static STOPPING_PROFILES: Lazy<Mutex<HashSet<u32>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 static PROFILE_SETTINGS: Lazy<Mutex<HashMap<u32, Value>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static PROFILE_LOG_FILES: Lazy<Mutex<HashMap<u32, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn clear_profile_settings(profile: u32) {
     let mut settings = PROFILE_SETTINGS.lock().unwrap();
     settings.remove(&profile);
+    let mut log_files = PROFILE_LOG_FILES.lock().unwrap();
+    log_files.remove(&profile);
 }
 
 struct StopGuard {
@@ -361,12 +364,23 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+fn get_default_vrchat_log_path_impl() -> Option<String> {
+    let home = std::env::var("USERPROFILE").ok()?;
+    Some(format!("{}\\AppData\\LocalLow\\VRChat\\VRChat", home))
+}
+
+#[tauri::command]
+fn get_default_vrchat_log_path() -> Result<String, String> {
+    get_default_vrchat_log_path_impl().ok_or_else(|| "USERPROFILE not set".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     spawn_vrchat_pid_monitor();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             launch_vrchat,
@@ -378,7 +392,11 @@ pub fn run() {
             decode_tracker_import,
             get_profile_settings,
             set_profile_settings,
-            remove_profile_settings
+            remove_profile_settings,
+            get_default_vrchat_log_path,
+            pick_vrchat_log_file,
+            set_profile_log_file,
+            get_profile_log_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -443,6 +461,19 @@ fn remove_profile_settings(profile: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_profile_log_file(profile: u32, path: String) -> Result<(), String> {
+    let mut log_files = PROFILE_LOG_FILES.lock().unwrap();
+    log_files.insert(profile, path);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_profile_log_file(profile: u32) -> Result<String, String> {
+    let log_files = PROFILE_LOG_FILES.lock().unwrap();
+    log_files.get(&profile).cloned().ok_or_else(|| "Not set".to_string())
+}
+
+#[tauri::command]
 fn decode_tracker_import(encoded: String) -> Result<Value, String> {
     let cleaned: String = encoded.chars().filter(|c| !c.is_whitespace()).collect();
     let raw_bytes = base64::engine::general_purpose::STANDARD
@@ -469,4 +500,18 @@ fn decode_tracker_import(encoded: String) -> Result<Value, String> {
 
     serde_json::from_str::<Value>(&json_text)
         .map_err(|e| format!("JSON parse failed: {e}"))
+}
+
+#[tauri::command]
+async fn pick_vrchat_log_file() -> Result<Option<String>, String> {
+    let default_path = get_default_vrchat_log_path_impl()
+        .unwrap_or_else(|| "C:\\Users\\<Username>\\AppData\\LocalLow\\VRChat\\VRChat".to_string());
+
+    let file = rfd::AsyncFileDialog::new()
+        .add_filter("Log Files", &["txt"])
+        .set_directory(&default_path)
+        .pick_file()
+        .await;
+
+    Ok(file.map(|f| f.path().to_string_lossy().to_string()))
 }
