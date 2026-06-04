@@ -133,11 +133,13 @@ button {
   justify-content: space-between;
   border: 2px solid var(--color-black);
   padding: var(--padding-medium);
+  padding-right: 20px;
   background-color: var(--color-white);
   min-width: 0;
   cursor: pointer;
   transition: transform 0.2s ease;
   border-radius: var(--border-radius);
+  position: relative;
 }
 
 .list-item:hover {
@@ -177,30 +179,48 @@ button {
 
 .instance-controls {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
+  margin-right: 0;
 }
 
 .setting-button {
   height: var(--button-height);
-  width: 64px;
-  padding: 2px 6px;
+  width: var(--button-height);
+  padding: 0;
   background-color: #6c757d;
   color: white;
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .setting-button:hover { background-color: #5a6268; }
 
+.placeholder-button {
+  height: var(--button-height);
+  width: 66px;
+  padding: 2px 8px;
+  background-color: #a5adb5;
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: not-allowed;
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
 .toggle-button {
   height: var(--button-height);
   /* Fixed size to avoid changing layout when label changes */
-  width: 90px;
+  width: 62px;
   padding: 2px 8px;
   background-color: var(--color-hover);
   color: var(--color-white);
@@ -263,17 +283,19 @@ button {
   background-color: #ff4444;
   color: white;
   border: none;
-  padding: 2px 6px;
-  border-radius: var(--border-radius);
+  padding: 0;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 12px;
-  margin-left: var(--padding-medium);
-  /* fixed size for delete button for visual consistency */
-  width: 34px;
-  height: var(--button-height);
+  font-size: 14px;
+  width: 18px;
+  height: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: absolute;
+  top: 0;
+  right: 0;
+  line-height: 1;
 }
 
 .delete-button:hover {

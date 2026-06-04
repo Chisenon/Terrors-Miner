@@ -86,10 +86,12 @@ function createListItem(instance, index) {
       <div class="instance-status ${statusClass}">${statusText}${pidText}</div>
     </span>
     <div class="instance-controls">
-      <button class="setting-button" onclick="openSetting(${index})" title="Setting">Setting</button>
+      <button class="placeholder-button" type="button" disabled title="Start/Stop (placeholder)">Start/Stop</button>
+      <button class="placeholder-button" type="button" disabled title="Auto (placeholder)">Auto</button>
       <button class="toggle-button" onclick="toggleInstance(${index})" ${btnDisabled ? 'disabled' : ''} title="${btnTitle}">${btnLabel}</button>
-      <button class="delete-button" onclick="removeInstance(${index})">×</button>
+      <button class="setting-button" onclick="openSetting(${index})" title="Setting">&#9881;</button>
     </div>
+    <button class="delete-button" onclick="removeInstance(${index})" title="Delete">×</button>
   `;
   return li;
 }
