@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::{System, Pid};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use base64::Engine;
 use flate2::read::GzDecoder;
+use tokio::net::UdpSocket;
 
 use once_cell::sync::Lazy;
 use tauri::Manager;
@@ -67,7 +68,7 @@ async fn launch_vrchat(profile: u32) -> Result<VRChatResult, String> {
     }
 
     match Command::new(vrchat_path)
-        .args(&["--no-vr", &format!("--profile={}", profile)])
+        .args(&["--no-vr", &format!("--profile={}", profile), &format!("--osc={}:127.0.0.1:{}", 9000 + profile * 10, 9001 + profile * 10)])
         .spawn()
     {
         Ok(child) => {
@@ -93,6 +94,38 @@ async fn launch_vrchat(profile: u32) -> Result<VRChatResult, String> {
             waiting_for_main_process: Some(false),
         }),
     }
+}
+
+#[tauri::command]
+async fn send_osc_test(profile: u32) -> Result<String, String> {
+    let in_port = 9000 + profile * 10;
+    let addr = format!("127.0.0.1:{}", in_port);
+
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .subsec_nanos();
+    let num = (nanos % 999) + 1;
+    let text = format!("{}", num);
+
+    let mut packet = Vec::new();
+    let addr_pattern = b"/chatbox/input";
+    packet.extend_from_slice(addr_pattern);
+    packet.push(0);
+    while packet.len() % 4 != 0 { packet.push(0); }
+    packet.extend_from_slice(b",sT");
+    packet.push(0);
+    while packet.len() % 4 != 0 { packet.push(0); }
+    let text_bytes = text.as_bytes();
+    packet.extend_from_slice(text_bytes);
+    packet.push(0);
+    while packet.len() % 4 != 0 { packet.push(0); }
+
+    let socket = UdpSocket::bind("0.0.0.0:0").await.map_err(|e| format!("bind: {}", e))?;
+    socket.send_to(&packet, &addr).await.map_err(|e| format!("send: {}", e))?;
+
+    eprintln!("[OSC TEST] Sent '{}' to {}", text, addr);
+    Ok(text)
 }
 
 #[tauri::command]
@@ -384,6 +417,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             launch_vrchat,
+            send_osc_test,
             stop_vrchat,
             get_running_vrchat,
             debug_vrchat_processes,
