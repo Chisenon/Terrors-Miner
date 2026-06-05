@@ -235,7 +235,8 @@
         display: flex;
         gap: 6px;
         padding: 8px;
-        justify-content: center;
+        justify-content: space-between;
+        align-items: stretch;
         border-bottom: 1px solid #333;
         background: #0f0f0f;
       }
@@ -263,6 +264,47 @@
         background: #3a3a3a;
         border-color: #5a7f85;
         color: #fff;
+      }
+
+      .toggle-btn.active {
+        background: #1f5a3f;
+        border-color: #2ecc71;
+        color: #eafff2;
+      }
+
+      .auto-jump-stack {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .auto-jump-btn {
+        flex: 0 0 calc(50% - 2px);
+      }
+
+      .jump-interval {
+        flex: 0 0 calc(50% - 2px);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: #202020;
+        border: 1px solid #3a3a3a;
+        color: #bbb;
+        padding: 0 6px;
+        font-size: 10px;
+      }
+
+      .jump-interval input {
+        width: 100%;
+        min-width: 0;
+        background: #111;
+        color: #ddd;
+        border: 1px solid #444;
+        font-size: 10px;
+        height: 20px;
+        padding: 0 4px;
       }
 
       .right-section-title {
@@ -440,10 +482,16 @@
                 <div id="selected-terrors-list" class="right-list">No terrors selected</div>
               </div>
               <div class="right-middle">
-                <button class="action-btn">Auto<br>jump</button>
-                <button class="action-btn">Auto<br>start</button>
-                <button class="action-btn">DTM</button>
-                <button class="action-btn">Action<br>Macro</button>
+                <div class="auto-jump-stack">
+                  <button class="action-btn toggle-btn auto-jump-btn" id="toggle-auto-jump">Auto<br>jump</button>
+                  <label class="jump-interval">
+                    <span>sec</span>
+                    <input id="auto-jump-seconds" type="number" min="0.2" step="0.1" value="3.0">
+                  </label>
+                </div>
+                <button class="action-btn toggle-btn" id="toggle-auto-start">Auto<br>start</button>
+                <button class="action-btn toggle-btn" id="toggle-dtm">DTM</button>
+                <button class="action-btn toggle-btn" id="toggle-macro">Action<br>Macro</button>
                 <button class="action-btn" id="osc-test-btn">?</button>
               </div>
               <div class="right-bottom">
@@ -554,6 +602,15 @@
       let tabConfigByKey = new Map();
       let initialLoadPromise = null;
       let roundNameById = new Map();
+      let autoJumpTimerId = null;
+      let autoJumpInFlight = false;
+      let autoStartInFlight = false;
+      const toggleState = {
+        autoJump: false,
+        autoStart: false,
+        dtm: false,
+        macro: false
+      };
       function getTabBarElement() {
         return document.getElementById('tab-bar');
       }
@@ -1089,6 +1146,122 @@
         await loadRoundTypes();
         updateSelectedTerrors();
       }
+      function readAutoJumpSeconds() {
+        const input = document.getElementById('auto-jump-seconds');
+        if (!input) return 3;
+        const sec = Number.parseFloat(input.value);
+        if (!Number.isFinite(sec) || sec < 0.2) return 0.2;
+        return sec;
+      }
+      function stopAutoJumpTimer() {
+        if (autoJumpTimerId !== null) {
+          clearInterval(autoJumpTimerId);
+          autoJumpTimerId = null;
+        }
+      }
+      async function runAutoJumpOnce() {
+        if (!toggleState.autoJump) return;
+        if (activeProfile === null) return;
+        if (autoJumpInFlight) return;
+        autoJumpInFlight = true;
+        try {
+          await tauriInvoke('send_osc_jump', { profile: activeProfile });
+        } catch (e) {
+          console.error(`[OSC] Auto jump failed: ${e}`);
+        } finally {
+          autoJumpInFlight = false;
+        }
+      }
+      function startAutoJumpTimer() {
+        stopAutoJumpTimer();
+        if (!toggleState.autoJump) return;
+        const sec = readAutoJumpSeconds();
+        const ms = Math.max(200, Math.round(sec * 1000));
+        autoJumpTimerId = setInterval(() => {
+          runAutoJumpOnce();
+        }, ms);
+      }
+      function setToggleButtonVisual(buttonId, isOn) {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        button.classList.toggle('active', isOn);
+        button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+      }
+      function setToggleState(key, isOn) {
+        toggleState[key] = isOn === true;
+        if (key === 'autoJump') {
+          setToggleButtonVisual('toggle-auto-jump', toggleState.autoJump);
+          if (toggleState.autoJump) {
+            startAutoJumpTimer();
+            runAutoJumpOnce();
+          } else {
+            stopAutoJumpTimer();
+          }
+        } else if (key === 'autoStart') {
+          setToggleButtonVisual('toggle-auto-start', toggleState.autoStart);
+          if (toggleState.autoStart) {
+            runAutoStartOnce();
+          }
+        } else if (key === 'dtm') {
+          setToggleButtonVisual('toggle-dtm', toggleState.dtm);
+        } else if (key === 'macro') {
+          setToggleButtonVisual('toggle-macro', toggleState.macro);
+        }
+      }
+      async function runAutoStartOnce() {
+        if (!toggleState.autoStart) return;
+        if (activeProfile === null) return;
+        if (autoStartInFlight) return;
+        autoStartInFlight = true;
+        try {
+          await tauriInvoke('run_osc_auto_start', { profile: activeProfile });
+        } catch (e) {
+          console.error(`[OSC] Auto start failed: ${e}`);
+        } finally {
+          autoStartInFlight = false;
+          setToggleState('autoStart', false);
+        }
+      }
+      function setupActionToggles() {
+        const autoJumpBtn = document.getElementById('toggle-auto-jump');
+        const autoStartBtn = document.getElementById('toggle-auto-start');
+        const dtmBtn = document.getElementById('toggle-dtm');
+        const macroBtn = document.getElementById('toggle-macro');
+        const jumpSeconds = document.getElementById('auto-jump-seconds');
+
+        if (autoJumpBtn) {
+          autoJumpBtn.addEventListener('click', () => {
+            setToggleState('autoJump', !toggleState.autoJump);
+          });
+        }
+        if (autoStartBtn) {
+          autoStartBtn.addEventListener('click', () => {
+            setToggleState('autoStart', !toggleState.autoStart);
+          });
+        }
+        if (dtmBtn) {
+          dtmBtn.addEventListener('click', () => {
+            setToggleState('dtm', !toggleState.dtm);
+          });
+        }
+        if (macroBtn) {
+          macroBtn.addEventListener('click', () => {
+            setToggleState('macro', !toggleState.macro);
+          });
+        }
+        if (jumpSeconds) {
+          jumpSeconds.addEventListener('change', () => {
+            if (toggleState.autoJump) {
+              startAutoJumpTimer();
+            }
+          });
+        }
+
+        setToggleState('autoJump', false);
+        setToggleState('autoStart', false);
+        setToggleState('dtm', false);
+        setToggleState('macro', false);
+      }
       function setupClearButton() {
         const clearBtn = document.getElementById('clear-selected-btn');
         if (!clearBtn) return;
@@ -1121,9 +1294,13 @@
         enableTabBarWheelScroll();
         setupImportButton();
         setupClearButton();
+        setupActionToggles();
         setupOSCTestButton();
         setupLogSelector();
         initialLoadPromise = initializePage();
+      });
+      window.addEventListener('beforeunload', () => {
+        stopAutoJumpTimer();
       });
     </script>
   </body>

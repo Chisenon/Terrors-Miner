@@ -10,6 +10,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use base64::Engine;
 use flate2::read::GzDecoder;
 use tokio::net::UdpSocket;
+use tokio::time::sleep;
 
 use once_cell::sync::Lazy;
 use tauri::Manager;
@@ -126,6 +127,94 @@ async fn send_osc_test(profile: u32) -> Result<String, String> {
 
     eprintln!("[OSC TEST] Sent '{}' to {}", text, addr);
     Ok(text)
+}
+
+fn append_osc_string_block(packet: &mut Vec<u8>, text: &str) {
+    packet.extend_from_slice(text.as_bytes());
+    packet.push(0);
+    while packet.len() % 4 != 0 {
+        packet.push(0);
+    }
+}
+
+async fn send_osc_int(profile: u32, address: &str, value: i32) -> Result<(), String> {
+    let in_port = 9000 + profile * 10;
+    let target = format!("127.0.0.1:{}", in_port);
+
+    let mut packet = Vec::new();
+    append_osc_string_block(&mut packet, address);
+    append_osc_string_block(&mut packet, ",i");
+    packet.extend_from_slice(&value.to_be_bytes());
+
+    let socket = UdpSocket::bind("0.0.0.0:0").await.map_err(|e| format!("bind: {}", e))?;
+    socket.send_to(&packet, &target).await.map_err(|e| format!("send: {}", e))?;
+    Ok(())
+}
+
+async fn send_osc_float(profile: u32, address: &str, value: f32) -> Result<(), String> {
+    let in_port = 9000 + profile * 10;
+    let target = format!("127.0.0.1:{}", in_port);
+
+    let mut packet = Vec::new();
+    append_osc_string_block(&mut packet, address);
+    append_osc_string_block(&mut packet, ",f");
+    packet.extend_from_slice(&value.to_be_bytes());
+
+    let socket = UdpSocket::bind("0.0.0.0:0").await.map_err(|e| format!("bind: {}", e))?;
+    socket.send_to(&packet, &target).await.map_err(|e| format!("send: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn send_osc_jump(profile: u32) -> Result<(), String> {
+    // Match the automator's /input/Jump int send behavior, with a short 1->0 pulse.
+    send_osc_int(profile, "/input/Jump", 1).await?;
+    sleep(Duration::from_millis(40)).await;
+    send_osc_int(profile, "/input/Jump", 0).await?;
+    Ok(())
+}
+
+async fn send_osc_left_click(profile: u32) -> Result<(), String> {
+    // Desktop left click equivalent in VRChat OSC input.
+    send_osc_int(profile, "/input/UseLeft", 1).await?;
+    sleep(Duration::from_millis(50)).await;
+    send_osc_int(profile, "/input/UseLeft", 0).await?;
+    Ok(())
+}
+
+async fn send_osc_right_click(profile: u32) -> Result<(), String> {
+    // Desktop right click equivalent in VRChat OSC input.
+    send_osc_int(profile, "/input/UseRight", 1).await?;
+    sleep(Duration::from_millis(50)).await;
+    send_osc_int(profile, "/input/UseRight", 0).await?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn run_osc_auto_start(profile: u32) -> Result<(), String> {
+    // Right click once.
+    send_osc_right_click(profile).await?;
+    sleep(Duration::from_millis(500)).await;
+
+    // Move forward for 2 seconds.
+    send_osc_float(profile, "/input/Vertical", 1.0).await?;
+    sleep(Duration::from_millis(2000)).await;
+    send_osc_float(profile, "/input/Vertical", 0.0).await?;
+    sleep(Duration::from_millis(80)).await;
+
+    // Move left for 0.5 seconds.
+    send_osc_float(profile, "/input/Horizontal", -1.0).await?;
+    sleep(Duration::from_millis(500)).await;
+    send_osc_float(profile, "/input/Horizontal", 0.0).await?;
+    sleep(Duration::from_millis(80)).await;
+
+    // Left click 5 times.
+    for _ in 0..5 {
+        send_osc_left_click(profile).await?;
+        sleep(Duration::from_millis(500)).await;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -418,6 +507,8 @@ pub fn run() {
             greet,
             launch_vrchat,
             send_osc_test,
+            send_osc_jump,
+            run_osc_auto_start,
             stop_vrchat,
             get_running_vrchat,
             debug_vrchat_processes,
