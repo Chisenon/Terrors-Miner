@@ -19,7 +19,42 @@ function addLogEntry(message) {
   console.log(`[${timestamp}] ${message}`);
 }
 
-function addVRChatProfile() {
+async function addVRChatProfile() {
+  try {
+    const attachResult = await tauriInvoke('attach_existing_vrchat');
+    if (attachResult && attachResult.attached) {
+      const attachedProfile = attachResult.profile;
+      const attachedPid = attachResult.process_id;
+      const existingIndex = vrchatInstances.findIndex(
+        (instance) => instance.profile === attachedProfile || instance.processId === attachedPid
+      );
+
+      const attachedInstance = {
+        profile: attachedProfile,
+        name: `VRChat Existing PID ${attachedPid}`,
+        status: 'running',
+        processId: attachedPid,
+        waitingForMainProcess: false,
+        isExistingProcess: true,
+        oscInPort: attachResult.in_port ?? null,
+        oscOutPort: attachResult.out_port ?? null
+      };
+
+      if (existingIndex >= 0) {
+        vrchatInstances[existingIndex] = { ...vrchatInstances[existingIndex], ...attachedInstance };
+      } else {
+        vrchatInstances.push(attachedInstance);
+      }
+
+      renderList();
+      updateItemCount();
+      addLogEntry(`${attachResult.message} (OSC in:${attachResult.in_port} out:${attachResult.out_port})`);
+      return;
+    }
+  } catch (error) {
+    addLogEntry(`Failed to attach existing VRChat process: ${error}`);
+  }
+
   const existingProfiles = vrchatInstances.map((instance) => instance.profile);
   let nextProfile = 1;
   while (existingProfiles.includes(nextProfile)) {
@@ -31,7 +66,8 @@ function addVRChatProfile() {
     name: `VRChat Profile ${nextProfile}`,
     status: 'stopped',
     processId: null,
-    waitingForMainProcess: false
+    waitingForMainProcess: false,
+    isExistingProcess: false
   };
 
   vrchatInstances.push(newInstance);
@@ -43,6 +79,9 @@ function addVRChatProfile() {
 function createListItem(instance, index) {
   const li = document.createElement('li');
   li.className = 'list-item';
+  const instanceLabel = instance.isExistingProcess && instance.processId
+    ? `PID ${instance.processId}`
+    : `P${instance.profile}`;
 
   let statusClass;
   let statusText;
@@ -80,7 +119,7 @@ function createListItem(instance, index) {
   }
 
   li.innerHTML = `
-    <span class="list-item-number">P${instance.profile}</span>
+    <span class="list-item-number">${instanceLabel}</span>
     <span class="list-item-content">
       <div class="instance-name">${instance.name}</div>
       <div class="instance-status ${statusClass}">${statusText}${pidText}</div>
@@ -265,7 +304,8 @@ async function checkRunningProcesses() {
           name: `VRChat Profile ${profile}`,
           status: 'running',
           processId: pid,
-          waitingForMainProcess: false
+          waitingForMainProcess: false,
+          isExistingProcess: false
         };
         vrchatInstances.push(newInstance);
         statusChanged = true;

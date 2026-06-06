@@ -1136,8 +1136,17 @@
           }
           const oscPorts = document.getElementById('osc-ports');
           if (oscPorts) {
-            const inPort = 9000 + activeProfile * 10;
-            const outPort = 9001 + activeProfile * 10;
+            let inPort = 9000 + activeProfile * 10;
+            let outPort = 9001 + activeProfile * 10;
+            try {
+              const resolvedPorts = await tauriInvoke('get_profile_osc_ports', { profile: activeProfile });
+              if (resolvedPorts && Number.isFinite(resolvedPorts.in_port) && Number.isFinite(resolvedPorts.out_port)) {
+                inPort = resolvedPorts.in_port;
+                outPort = resolvedPorts.out_port;
+              }
+            } catch (_e) {
+              // keep fallback values
+            }
             oscPorts.textContent = `(OSC in:${inPort} out:${outPort})`;
           }
         }

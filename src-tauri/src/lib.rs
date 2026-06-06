@@ -20,12 +20,130 @@ static MISSED_DETECTIONS: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::n
 static STOPPING_PROFILES: Lazy<Mutex<HashSet<u32>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 static PROFILE_SETTINGS: Lazy<Mutex<HashMap<u32, Value>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_LOG_FILES: Lazy<Mutex<HashMap<u32, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static PROFILE_OSC_PORTS: Lazy<Mutex<HashMap<u32, OscPorts>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+#[derive(Clone, Copy)]
+struct OscPorts {
+    in_port: u16,
+    out_port: u16,
+}
+
+#[derive(Serialize, Deserialize)]
+struct OscPortsResult {
+    in_port: u16,
+    out_port: u16,
+}
+
+#[derive(Serialize, Deserialize)]
+struct AttachExistingResult {
+    attached: bool,
+    profile: Option<u32>,
+    process_id: Option<u32>,
+    in_port: Option<u16>,
+    out_port: Option<u16>,
+    message: String,
+}
+
+fn default_osc_ports(profile: u32) -> OscPorts {
+    let base = 9000u32.saturating_add(profile.saturating_mul(10));
+    let in_port = u16::try_from(base).unwrap_or(9000);
+    let out_port = u16::try_from(base.saturating_add(1)).unwrap_or(9001);
+    OscPorts { in_port, out_port }
+}
+
+fn get_or_init_profile_osc_ports(profile: u32) -> OscPorts {
+    let mut map = PROFILE_OSC_PORTS.lock().unwrap();
+    if let Some(&ports) = map.get(&profile) {
+        return ports;
+    }
+    let ports = default_osc_ports(profile);
+    map.insert(profile, ports);
+    ports
+}
+
+fn set_profile_osc_ports(profile: u32, ports: OscPorts) {
+    let mut map = PROFILE_OSC_PORTS.lock().unwrap();
+    map.insert(profile, ports);
+}
+
+fn detect_next_profile(used: &HashSet<u32>) -> u32 {
+    (1..).find(|n| !used.contains(n)).unwrap_or(1)
+}
+
+fn parse_local_port_from_endpoint(endpoint: &str) -> Option<u16> {
+    endpoint
+        .rsplit(':')
+        .next()
+        .and_then(|p| p.parse::<u16>().ok())
+}
+
+fn find_udp_9000_ports_for_pid(pid: u32) -> Vec<u16> {
+    let output = match Command::new("netstat")
+        .args(["-ano", "-p", "udp"])
+        .output()
+    {
+        Ok(out) => out,
+        Err(_) => return Vec::new(),
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut ports = Vec::new();
+
+    for line in text.lines() {
+        let cols: Vec<&str> = line.split_whitespace().collect();
+        if cols.len() < 4 {
+            continue;
+        }
+        if !cols[0].eq_ignore_ascii_case("udp") {
+            continue;
+        }
+        let owning_pid = match cols.last().and_then(|s| s.parse::<u32>().ok()) {
+            Some(v) => v,
+            None => continue,
+        };
+        if owning_pid != pid {
+            continue;
+        }
+        let local = cols[1];
+        let Some(port) = parse_local_port_from_endpoint(local) else {
+            continue;
+        };
+        if (9000..=9999).contains(&port) {
+            ports.push(port);
+        }
+    }
+
+    ports.sort_unstable();
+    ports.dedup();
+    ports
+}
+
+fn detect_osc_ports_for_pid(pid: u32, profile_fallback: u32) -> OscPorts {
+    let ports = find_udp_9000_ports_for_pid(pid);
+    if ports.len() >= 2 {
+        return OscPorts {
+            in_port: ports[0],
+            out_port: ports[1],
+        };
+    }
+    if ports.len() == 1 {
+        let in_port = ports[0];
+        let out_port = if in_port < 9999 { in_port + 1 } else { in_port };
+        return OscPorts { in_port, out_port };
+    }
+    default_osc_ports(profile_fallback)
+}
 
 fn clear_profile_settings(profile: u32) {
     let mut settings = PROFILE_SETTINGS.lock().unwrap();
     settings.remove(&profile);
     let mut log_files = PROFILE_LOG_FILES.lock().unwrap();
     log_files.remove(&profile);
+    let mut osc_ports = PROFILE_OSC_PORTS.lock().unwrap();
+    osc_ports.remove(&profile);
 }
 
 struct StopGuard {
@@ -51,6 +169,7 @@ struct VRChatResult {
 #[tauri::command]
 async fn launch_vrchat(profile: u32) -> Result<VRChatResult, String> {
     let vrchat_path = r"C:\Program Files (x86)\Steam\steamapps\common\VRChat\start_protected_game.exe";
+    let osc_ports = get_or_init_profile_osc_ports(profile);
 
     {
         let processes = VRCHAT_PROCESSES.lock().unwrap();
@@ -69,7 +188,11 @@ async fn launch_vrchat(profile: u32) -> Result<VRChatResult, String> {
     }
 
     match Command::new(vrchat_path)
-        .args(&["--no-vr", &format!("--profile={}", profile), &format!("--osc={}:127.0.0.1:{}", 9000 + profile * 10, 9001 + profile * 10)])
+        .args(&[
+            "--no-vr",
+            &format!("--profile={}", profile),
+            &format!("--osc={}:127.0.0.1:{}", osc_ports.in_port, osc_ports.out_port),
+        ])
         .spawn()
     {
         Ok(child) => {
@@ -99,7 +222,7 @@ async fn launch_vrchat(profile: u32) -> Result<VRChatResult, String> {
 
 #[tauri::command]
 async fn send_osc_test(profile: u32) -> Result<String, String> {
-    let in_port = 9000 + profile * 10;
+    let in_port = get_or_init_profile_osc_ports(profile).in_port;
     let addr = format!("127.0.0.1:{}", in_port);
 
     let nanos = SystemTime::now()
@@ -138,7 +261,7 @@ fn append_osc_string_block(packet: &mut Vec<u8>, text: &str) {
 }
 
 async fn send_osc_int(profile: u32, address: &str, value: i32) -> Result<(), String> {
-    let in_port = 9000 + profile * 10;
+    let in_port = get_or_init_profile_osc_ports(profile).in_port;
     let target = format!("127.0.0.1:{}", in_port);
 
     let mut packet = Vec::new();
@@ -152,7 +275,7 @@ async fn send_osc_int(profile: u32, address: &str, value: i32) -> Result<(), Str
 }
 
 async fn send_osc_float(profile: u32, address: &str, value: f32) -> Result<(), String> {
-    let in_port = 9000 + profile * 10;
+    let in_port = get_or_init_profile_osc_ports(profile).in_port;
     let target = format!("127.0.0.1:{}", in_port);
 
     let mut packet = Vec::new();
@@ -175,18 +298,22 @@ async fn send_osc_jump(profile: u32) -> Result<(), String> {
 }
 
 async fn send_osc_left_click(profile: u32) -> Result<(), String> {
-    // Desktop left click equivalent in VRChat OSC input.
-    send_osc_int(profile, "/input/UseLeft", 1).await?;
+    // Desktop pickup/use is usually right-hand use in OSC.
+    send_osc_int(profile, "/input/UseRight", 1).await?;
     sleep(Duration::from_millis(50)).await;
-    send_osc_int(profile, "/input/UseLeft", 0).await?;
+    send_osc_int(profile, "/input/UseRight", 0).await?;
+    // Some interactions are grab-based; pulse grab as fallback.
+    send_osc_int(profile, "/input/GrabRight", 1).await?;
+    sleep(Duration::from_millis(50)).await;
+    send_osc_int(profile, "/input/GrabRight", 0).await?;
     Ok(())
 }
 
 async fn send_osc_right_click(profile: u32) -> Result<(), String> {
-    // Desktop right click equivalent in VRChat OSC input.
-    send_osc_int(profile, "/input/UseRight", 1).await?;
+    // Right click action mapped to item release.
+    send_osc_int(profile, "/input/DropRight", 1).await?;
     sleep(Duration::from_millis(50)).await;
-    send_osc_int(profile, "/input/UseRight", 0).await?;
+    send_osc_int(profile, "/input/DropRight", 0).await?;
     Ok(())
 }
 
@@ -204,11 +331,11 @@ async fn run_osc_auto_start(profile: u32) -> Result<(), String> {
 
     // Move left for 0.5 seconds.
     send_osc_float(profile, "/input/Horizontal", -1.0).await?;
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_millis(200)).await;
     send_osc_float(profile, "/input/Horizontal", 0.0).await?;
     sleep(Duration::from_millis(80)).await;
 
-    // Left click 5 times.
+    // left click 5 times.
     for _ in 0..5 {
         send_osc_left_click(profile).await?;
         sleep(Duration::from_millis(500)).await;
@@ -329,6 +456,74 @@ async fn get_running_vrchat() -> Result<HashMap<u32, u32>, String> {
 }
 
 #[tauri::command]
+fn get_profile_osc_ports(profile: u32) -> Result<OscPortsResult, String> {
+    let ports = get_or_init_profile_osc_ports(profile);
+    Ok(OscPortsResult {
+        in_port: ports.in_port,
+        out_port: ports.out_port,
+    })
+}
+
+#[tauri::command]
+async fn attach_existing_vrchat() -> Result<AttachExistingResult, String> {
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    let tracked_pids: HashSet<u32> = {
+        let tracked = VRCHAT_PROCESSES.lock().unwrap();
+        tracked.values().copied().collect()
+    };
+
+    let mut candidate_pid: Option<u32> = None;
+    let mut candidate_start: Option<u64> = None;
+
+    for (pid, process) in system.processes() {
+        let name = process.name().to_string().to_lowercase();
+        if !name.contains("vrchat") || name.contains("start_protected_game") || name.contains("unity") {
+            continue;
+        }
+        let pid_u32 = pid.as_u32();
+        if tracked_pids.contains(&pid_u32) {
+            continue;
+        }
+        let start_time = process.start_time();
+        if candidate_start.is_none() || start_time < candidate_start.unwrap_or(u64::MAX) {
+            candidate_start = Some(start_time);
+            candidate_pid = Some(pid_u32);
+        }
+    }
+
+    let Some(found_pid) = candidate_pid else {
+        return Ok(AttachExistingResult {
+            attached: false,
+            profile: None,
+            process_id: None,
+            in_port: None,
+            out_port: None,
+            message: "No untracked running VRChat process found".to_string(),
+        });
+    };
+
+    let mut tracked = VRCHAT_PROCESSES.lock().unwrap();
+    let used: HashSet<u32> = tracked.keys().copied().collect();
+    let profile = detect_next_profile(&used);
+    tracked.insert(profile, found_pid);
+    drop(tracked);
+
+    let ports = detect_osc_ports_for_pid(found_pid, profile);
+    set_profile_osc_ports(profile, ports);
+
+    Ok(AttachExistingResult {
+        attached: true,
+        profile: Some(profile),
+        process_id: Some(found_pid),
+        in_port: Some(ports.in_port),
+        out_port: Some(ports.out_port),
+        message: format!("Attached running VRChat PID {} as Profile {}", found_pid, profile),
+    })
+}
+
+#[tauri::command]
 async fn debug_vrchat_processes() -> Result<Vec<String>, String> {
     let mut system = System::new_all();
     system.refresh_all();
@@ -444,10 +639,14 @@ fn spawn_vrchat_pid_monitor() {
                             if old_pid != new_pid {
                                 eprintln!("[PID MONITOR] Profile {} PID changed: {} -> {}", profile, old_pid, new_pid);
                                 stored.insert(profile, new_pid);
+                                let ports = detect_osc_ports_for_pid(new_pid, profile);
+                                set_profile_osc_ports(profile, ports);
                             }
                         } else {
                             eprintln!("[PID MONITOR] Profile {} registered: PID {}", profile, new_pid);
                             stored.insert(profile, new_pid);
+                            let ports = detect_osc_ports_for_pid(new_pid, profile);
+                            set_profile_osc_ports(profile, ports);
                         }
                     } else {
                         let already_stored = stored.values().any(|&pid| pid == new_pid);
@@ -460,6 +659,8 @@ fn spawn_vrchat_pid_monitor() {
                                 }
                                 eprintln!("[PID MONITOR] Assigned pending Profile {} to PID {}", profile, new_pid);
                                 stored.insert(profile, new_pid);
+                                let ports = detect_osc_ports_for_pid(new_pid, profile);
+                                set_profile_osc_ports(profile, ports);
                                 assigned = true;
                                 break;
                             }
@@ -469,6 +670,8 @@ fn spawn_vrchat_pid_monitor() {
                                 if !stopping_snapshot.contains(&next_profile) {
                                     eprintln!("[PID MONITOR] Auto-assigned Profile {} to PID {} (no --profile)", next_profile, new_pid);
                                     stored.insert(next_profile, new_pid);
+                                    let ports = detect_osc_ports_for_pid(new_pid, next_profile);
+                                    set_profile_osc_ports(next_profile, ports);
                                 }
                             }
                         }
@@ -511,6 +714,8 @@ pub fn run() {
             run_osc_auto_start,
             stop_vrchat,
             get_running_vrchat,
+            get_profile_osc_ports,
+            attach_existing_vrchat,
             debug_vrchat_processes,
             is_eac_launcher_running,
             create_sub_window,
