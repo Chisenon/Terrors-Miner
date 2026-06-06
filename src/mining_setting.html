@@ -120,6 +120,51 @@
         border-radius: 0;
       }
 
+      .left-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        background: #131313;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      .round-search {
+        flex: 1;
+        min-width: 0;
+        height: 24px;
+        background: #111;
+        color: #ddd;
+        border: 1px solid #444;
+        padding: 0 6px;
+        font-size: 11px;
+      }
+
+      .round-bulk-buttons {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .round-bulk-btn {
+        min-width: 34px;
+        height: 24px;
+        padding: 0 8px;
+        border: 1px solid #555;
+        background: #2a2a2a;
+        color: #ddd;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .round-bulk-btn:hover {
+        background: #3a3a3a;
+        border-color: #6a9fa5;
+        color: #fff;
+      }
+
       .tab-item {
         flex-shrink: 0;
         padding: 6px 12px;
@@ -471,6 +516,13 @@
           <div class="split-container">
             <div class="split-left">
               <div id="tab-bar">Loading...</div>
+              <div class="left-controls">
+                <input id="terror-search-input" class="round-search" type="text" placeholder="Search in this round">
+                <div class="round-bulk-buttons">
+                  <button id="round-check-on" class="round-bulk-btn" type="button">ON</button>
+                  <button id="round-check-off" class="round-bulk-btn" type="button">OFF</button>
+                </div>
+              </div>
               <div id="content-area">Select a round type to view details</div>
             </div>
             <div class="split-right">
@@ -602,6 +654,8 @@
       let tabConfigByKey = new Map();
       let initialLoadPromise = null;
       let roundNameById = new Map();
+      let activeTabKey = null;
+      let tabSearchTerms = new Map();
       let autoJumpTimerId = null;
       let autoJumpInFlight = false;
       let autoStartInFlight = false;
@@ -977,6 +1031,20 @@
         if (!Array.isArray(terror.appearsInRounds)) return false;
         return terror.appearsInRounds.some((roundId) => roundSet.has(roundId));
       }
+      function getSearchTermForTab(tabKey) {
+        return tabSearchTerms.get(tabKey) || '';
+      }
+      function setSearchTermForTab(tabKey, value) {
+        tabSearchTerms.set(tabKey, String(value || ''));
+      }
+      function getFilteredTerrorsForTab(tabConfig) {
+        const terrors = getTerrorsForTab(tabConfig);
+        const searchTerm = normalizeName(getSearchTermForTab(tabConfig.key)).trim();
+        if (!searchTerm) {
+          return terrors;
+        }
+        return terrors.filter((terror) => normalizeName(terror.Name).includes(searchTerm));
+      }
       function createTerrorLabel(terror, tabConfig) {
         let displayName = terror.Name;
         if (tabConfig.isSpecial) return displayName;
@@ -1001,7 +1069,8 @@
         checkbox.type = 'checkbox';
         checkbox.dataset.trackerKey = terror.trackerKey || '';
         checkbox.dataset.roundIds = tabConfig.roundIds.join(',');
-        checkbox.checked = isCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds);
+        checkbox.dataset.hasRound = hasRound ? '1' : '0';
+        checkbox.checked = hasRound ? isCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds) : false;
         if (!hasRound) {
           checkbox.addEventListener('click', (event) => event.preventDefault());
         } else {
@@ -1022,6 +1091,11 @@
       function applySettingsToRenderedCheckboxes() {
         const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
         for (const checkbox of checkboxes) {
+          const hasRound = checkbox.dataset.hasRound === '1';
+          if (!hasRound) {
+            checkbox.checked = false;
+            continue;
+          }
           const trackerKey = checkbox.dataset.trackerKey;
           const roundIds = String(checkbox.dataset.roundIds || '')
             .split(',')
@@ -1034,23 +1108,76 @@
       function renderTabContent(tabConfig) {
         const contentArea = getContentAreaElement();
         contentArea.innerHTML = '';
-        const terrors = getTerrorsForTab(tabConfig);
+        const terrors = getFilteredTerrorsForTab(tabConfig);
         if (terrors.length === 0) {
-          contentArea.innerHTML = '<p style="color: #888;">No terrors configured for this round.</p>';
+          contentArea.innerHTML = '<p style="color: #888;">No terrors matched in this round.</p>';
           return;
         }
         for (const terror of terrors) {
           contentArea.appendChild(createTerrorRow(terror, tabConfig));
         }
       }
+      function syncRoundSearchInput() {
+        const input = document.getElementById('terror-search-input');
+        if (!input) return;
+        if (!activeTabKey) {
+          input.value = '';
+          input.disabled = true;
+          return;
+        }
+        input.disabled = false;
+        input.value = getSearchTermForTab(activeTabKey);
+      }
       function selectTabByKey(tabKey) {
         const tabConfig = tabConfigByKey.get(tabKey);
         if (!tabConfig) return;
+        activeTabKey = tabKey;
         document.querySelectorAll('.tab-item').forEach((tab) => {
           tab.classList.toggle('active', tab.dataset.key === tabKey);
         });
+        syncRoundSearchInput();
         renderTabContent(tabConfig);
         applySettingsToRenderedCheckboxes();
+      }
+      async function setRoundChecks(tabConfig, checked) {
+        if (!tabConfig) return;
+        const terrors = getTerrorsForTab(tabConfig);
+        for (const terror of terrors) {
+          if (!terror || !terror.trackerKey) continue;
+          if (!terrorHasRound(terror, tabConfig.roundSet)) continue;
+          setCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds, checked);
+        }
+        await persistProfileSettings();
+        renderTabContent(tabConfig);
+        applySettingsToRenderedCheckboxes();
+        updateSelectedTerrors();
+      }
+      function setupRoundControls() {
+        const searchInput = document.getElementById('terror-search-input');
+        const onBtn = document.getElementById('round-check-on');
+        const offBtn = document.getElementById('round-check-off');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            if (!activeTabKey) return;
+            setSearchTermForTab(activeTabKey, searchInput.value);
+            const tabConfig = tabConfigByKey.get(activeTabKey);
+            if (!tabConfig) return;
+            renderTabContent(tabConfig);
+            applySettingsToRenderedCheckboxes();
+          });
+        }
+        if (onBtn) {
+          onBtn.addEventListener('click', () => {
+            const tabConfig = activeTabKey ? tabConfigByKey.get(activeTabKey) : null;
+            setRoundChecks(tabConfig, true).catch((e) => console.error('Failed to set round ON:', e));
+          });
+        }
+        if (offBtn) {
+          offBtn.addEventListener('click', () => {
+            const tabConfig = activeTabKey ? tabConfigByKey.get(activeTabKey) : null;
+            setRoundChecks(tabConfig, false).catch((e) => console.error('Failed to set round OFF:', e));
+          });
+        }
       }
       function setupImportButton() {
         const importBtn = document.getElementById('import-btn');
@@ -1114,7 +1241,13 @@
           if (!state) continue;
           for (const [roundId, checked] of Object.entries(state)) {
             if (checked) {
-              const name = roundNameById.get(Number(roundId)) || roundId;
+              const numericRoundId = Number(roundId);
+              const appearsInRound = Array.isArray(terror.appearsInRounds)
+                && terror.appearsInRounds.includes(numericRoundId);
+              if (!appearsInRound) {
+                continue;
+              }
+              const name = roundNameById.get(numericRoundId) || roundId;
               lines.push({ round: Number(roundId), text: `${name} - ${terror.Name}` });
             }
           }
@@ -1301,6 +1434,7 @@
       }
       window.addEventListener('DOMContentLoaded', () => {
         enableTabBarWheelScroll();
+        setupRoundControls();
         setupImportButton();
         setupClearButton();
         setupActionToggles();

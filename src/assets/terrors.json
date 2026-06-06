@@ -18,14 +18,14 @@
     "Name": "Demented Spongebob",
     "category": "Classic",
     "trackerKey": "demented_spongebob",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50, 105]
   },
   {
     "id": 3,
     "Name": "Specimen 8",
     "category": "Classic",
     "trackerKey": "specimen_8",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 4,
@@ -39,21 +39,21 @@
     "Name": "Tails Doll",
     "category": "Classic",
     "trackerKey": "tails_doll",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 6,
     "Name": "Black Sun",
     "category": "Classic",
     "trackerKey": "black_sun",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 7,
     "Name": "Aku Ball",
     "category": "Classic",
     "trackerKey": "aku_ball",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 8,
@@ -74,28 +74,28 @@
     "Name": "[CENSORED]",
     "category": "Classic",
     "trackerKey": "censored",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 11,
     "Name": "WhiteNight",
     "category": "Classic",
     "trackerKey": "whitenight",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 12,
     "Name": "An Arbiter",
     "category": "Classic",
     "trackerKey": "an_arbiter",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 13,
     "Name": "Specimen 5",
     "category": "Classic",
     "trackerKey": "specimen_5",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 14,
@@ -109,28 +109,28 @@
     "Name": "Purple Guy",
     "category": "Classic",
     "trackerKey": "purple_guy",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 16,
     "Name": "Spongefly Swarm",
     "category": "Classic",
     "trackerKey": "spongefly_swarm",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50]
   },
   {
     "id": 17,
     "Name": "Hush",
     "category": "Classic",
     "trackerKey": "hush",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 18,
     "Name": "MopeMope",
     "category": "Classic",
     "trackerKey": "mope_mope",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 19,
@@ -151,21 +151,21 @@
     "Name": "Something",
     "category": "Classic",
     "trackerKey": "something",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 22,
     "Name": "Starved",
     "category": "Classic",
     "trackerKey": "starved",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 23,
     "Name": "The Painter",
     "category": "Classic",
     "trackerKey": "the_painter",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 24,
@@ -186,28 +186,28 @@
     "Name": "Nextbots",
     "category": "Classic",
     "trackerKey": "nextbots",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 27,
     "Name": "Harvest",
     "category": "Classic",
     "trackerKey": "harvest",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 28,
     "Name": "Smileghost",
     "category": "Classic",
     "trackerKey": "smileghost",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50]
   },
   {
     "id": 29,
     "Name": "Karol_Corpse",
     "category": "Classic",
     "trackerKey": "karol_corpse",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 30,
@@ -228,7 +228,7 @@
     "Name": "Dev Bytes",
     "category": "Classic",
     "trackerKey": "dev_bytes",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 33,
@@ -236,14 +236,14 @@
     "category": "Classic",
     "trackerKey": "luigi",
     "legacyTrackerKeys": ["luigi_and_luigi_dolls"],
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 9, 105]
   },
   {
     "id": 34,
     "Name": "V2",
     "category": "Classic",
     "trackerKey": "v2",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 35,
@@ -257,7 +257,7 @@
     "Name": "The Boys",
     "category": "Classic",
     "trackerKey": "the_boys",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 37,
@@ -271,7 +271,7 @@
     "Name": "Seek",
     "category": "Classic",
     "trackerKey": "seek",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 39,
@@ -285,28 +285,28 @@
     "Name": "Sonic",
     "category": "Classic",
     "trackerKey": "sonic",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 41,
     "Name": "Bad Batter",
     "category": "Classic",
     "trackerKey": "bad_batter",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 42,
     "Name": "Signus",
     "category": "Classic",
     "trackerKey": "signus",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 43,
     "Name": "Mirror",
     "category": "Classic",
     "trackerKey": "mirror",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 44,
@@ -320,7 +320,7 @@
     "Name": "Mona \u0026 The Mountain",
     "category": "Classic",
     "trackerKey": "mona_and_the_mountain",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 46,
@@ -341,21 +341,21 @@
     "Name": "Maul-A-Child",
     "category": "Classic",
     "trackerKey": "maul-a-child",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 49,
     "Name": "Garten Goers",
     "category": "Classic",
     "trackerKey": "garten_goers",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 50,
     "Name": "Don\u0027t Touch Me",
     "category": "Classic",
     "trackerKey": "dont_touch_me",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 51,
@@ -376,21 +376,21 @@
     "Name": "The LifeBringer",
     "category": "Classic",
     "trackerKey": "the_lifebringer",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 54,
     "Name": "Pale Association",
     "category": "Classic",
     "trackerKey": "pale_association",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 55,
     "Name": "Toy Enforcer",
     "category": "Classic",
     "trackerKey": "toy_enforcer",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 56,
@@ -404,21 +404,21 @@
     "Name": "DoomBox",
     "category": "Classic",
     "trackerKey": "doombox",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 58,
     "Name": "Christian Brutal Sniper",
     "category": "Classic",
     "trackerKey": "christian_brutal_sniper",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 59,
     "Name": "Nosk",
     "category": "Classic",
     "trackerKey": "nosk",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 60,
@@ -446,42 +446,42 @@
     "Name": "Wario Apparition",
     "category": "Classic",
     "trackerKey": "wario_apparition",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 64,
     "Name": "Shinto",
     "category": "Classic",
     "trackerKey": "shinto",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 65,
     "Name": "Hell Bell",
     "category": "Classic",
     "trackerKey": "hell_bell",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 66,
     "Name": "Security",
     "category": "Classic",
     "trackerKey": "security",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 67,
     "Name": "The Swarm",
     "category": "Classic",
     "trackerKey": "the_swarm",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 68,
     "Name": "Shiteyanyo",
     "category": "Classic",
     "trackerKey": "shiteyanyo",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 69,
@@ -509,21 +509,21 @@
     "Name": "Haket",
     "category": "Classic",
     "trackerKey": "haket",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 73,
     "Name": "Akumii-Kari",
     "category": "Classic",
     "trackerKey": "akumii-kari",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 9, 105]
   },
   {
     "id": 74,
     "Name": "Lunatic Cultist",
     "category": "Classic",
     "trackerKey": "lunatic_cultist",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 75,
@@ -544,28 +544,28 @@
     "Name": "Prisoner",
     "category": "Classic",
     "trackerKey": "prisoner",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 78,
     "Name": "Red Bus",
     "category": "Classic",
     "trackerKey": "red_bus",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50]
   },
   {
     "id": 79,
     "Name": "Waterwraith",
     "category": "Classic",
     "trackerKey": "waterwraith",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 80,
     "Name": "Astrum Aureus",
     "category": "Classic",
     "trackerKey": "astrum_aureus",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 81,
@@ -587,14 +587,14 @@
     "Name": "lain",
     "category": "Classic",
     "trackerKey": "lain",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 84,
     "Name": "Sakuya Izayoi",
     "category": "Classic",
     "trackerKey": "sakuya_izayoi",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 85,
@@ -616,14 +616,14 @@
     "Name": "BFF",
     "category": "Classic",
     "trackerKey": "bff",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50]
   },
   {
     "id": 88,
     "Name": "Scavenger",
     "category": "Classic",
     "trackerKey": "scavenger",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 89,
@@ -637,77 +637,77 @@
     "Name": "Tricky",
     "category": "Classic",
     "trackerKey": "tricky",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 91,
     "Name": "Yolm",
     "category": "Classic",
     "trackerKey": "yolm",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 92,
     "Name": "Red Fanatic",
     "category": "Classic",
     "trackerKey": "red_fanatic",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 93,
     "Name": "Dr. Tox",
     "category": "Classic",
     "trackerKey": "dr_tox",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 94,
     "Name": "Ink Demon",
     "category": "Classic",
     "trackerKey": "ink_demon",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 95,
     "Name": "Retep",
     "category": "Classic",
     "trackerKey": "retep",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 96,
     "Name": "Those Olden Days",
     "category": "Classic",
     "trackerKey": "those_olden_days",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 97,
     "Name": "S.O.S",
     "category": "Classic",
     "trackerKey": "sos",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 98,
     "Name": "Bigger Boot",
     "category": "Classic",
     "trackerKey": "bigger_boot",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 99,
     "Name": "The Pursuer",
     "category": "Classic",
     "trackerKey": "the_pursuer",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 100,
     "Name": "Spamton",
     "category": "Classic",
     "trackerKey": "spamton",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 101,
@@ -721,7 +721,7 @@
     "Name": "Charlotte",
     "category": "Classic",
     "trackerKey": "charlotte",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 103,
@@ -735,7 +735,7 @@
     "Name": "Peepy",
     "category": "Classic",
     "trackerKey": "peepy",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 105,
@@ -749,21 +749,21 @@
     "Name": "Wild Yet Curious Creature",
     "category": "Classic",
     "trackerKey": "wild_yet_curious_creature",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 107,
     "Name": "Manti",
     "category": "Classic",
     "trackerKey": "manti",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 108,
     "Name": "Horseless Headless Horsemann",
     "category": "Classic",
     "trackerKey": "horseless_headless_horsemann",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 109,
@@ -777,14 +777,14 @@
     "Name": "Cubor\u0027s Revenge",
     "category": "Classic",
     "trackerKey": "cubors_revenge",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 111,
     "Name": "Poly",
     "category": "Classic",
     "trackerKey": "poly",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 112,
@@ -805,56 +805,56 @@
     "Name": "Fox Squad",
     "category": "Classic",
     "trackerKey": "fox_squad",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 115,
     "Name": "Express Train To Hell",
     "category": "Classic",
     "trackerKey": "express_train_to_hell",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 116,
     "Name": "Deleted",
     "category": "Classic",
     "trackerKey": "deleted",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 105]
   },
   {
     "id": 117,
     "Name": "Killer Fish",
     "category": "Classic",
     "trackerKey": "killer_fish",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 118,
     "Name": "Terror of Nowhere",
     "category": "Classic",
     "trackerKey": "terror_of_nowhere",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 119,
     "Name": "Shade of Ambition",
     "category": "Classic",
     "trackerKey": "shade_of_ambition",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 120,
     "Name": "The Origin",
     "category": "Classic",
     "trackerKey": "the_origin",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 121,
     "Name": "Time Ripper",
     "category": "Classic",
     "trackerKey": "time_ripper",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 122,
@@ -868,63 +868,63 @@
     "Name": "Parhelion\u0027s Victims",
     "category": "Classic",
     "trackerKey": "parhelions_victims",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 124,
     "Name": "Bed Mecha",
     "category": "Classic",
     "trackerKey": "bed_mecha",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 125,
     "Name": "Killer Rabbit",
     "category": "Classic",
     "trackerKey": "killer_rabbit",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 126,
     "Name": "Bravera",
     "category": "Classic",
     "trackerKey": "bravera",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 127,
     "Name": "MissingNo",
     "category": "Classic",
     "trackerKey": "missingno",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 128,
     "Name": "Living Shadow",
     "category": "Classic",
     "trackerKey": "living_shadow",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 50, 105]
   },
   {
     "id": 129,
     "Name": "The Plague Doctor",
     "category": "Classic",
     "trackerKey": "the_plague_doctor",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 130,
     "Name": "The Rat",
     "category": "Classic",
     "trackerKey": "the_rat",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 131,
     "Name": "Waldo",
     "category": "Classic",
     "trackerKey": "waldo",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 132,
@@ -938,14 +938,14 @@
     "Name": "Malicious Twins",
     "category": "Classic",
     "trackerKey": "malicious_twins",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 134,
     "Name": "Decayed Sponge",
     "category": "Alternate",
     "trackerKey": "decayed_sponge",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 135,
@@ -959,28 +959,28 @@
     "Name": "Sanic",
     "category": "Alternate",
     "trackerKey": "sanic",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 137,
     "Name": "Parhelion",
     "category": "Alternate",
     "trackerKey": "parhelion",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 138,
     "Name": ",D@;Q7Y",
     "category": "Alternate",
     "trackerKey": "distorted_yan",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 139,
     "Name": "Chomper",
     "category": "Alternate",
     "trackerKey": "chomper",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 140,
@@ -994,42 +994,42 @@
     "Name": "Tragedy",
     "category": "Alternate",
     "trackerKey": "tragedy",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 105]
   },
   {
     "id": 142,
     "Name": "Smile Walker",
     "category": "Alternate",
     "trackerKey": "smile_walker",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 143,
     "Name": "MR.MEGA",
     "category": "Alternate",
     "trackerKey": "mr_mega",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 144,
     "Name": "sm64.z64",
     "category": "Alternate",
     "trackerKey": "sm64_z64",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 105]
   },
   {
     "id": 145,
     "Name": "Convict Squad",
     "category": "Alternate",
     "trackerKey": "convict_squad",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 146,
     "Name": "Paradise Bird",
     "category": "Alternate",
     "trackerKey": "paradise_bird",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 147,
@@ -1043,49 +1043,49 @@
     "Name": "Lord\u0027s Signal",
     "category": "Alternate",
     "trackerKey": "lords_signal",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 149,
     "Name": "Feddys",
     "category": "Alternate",
     "trackerKey": "feddys",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 150,
     "Name": "TBH SPY",
     "category": "Alternate",
     "trackerKey": "tbh_spy",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 151,
     "Name": "The Observation",
     "category": "Alternate",
     "trackerKey": "the_observation",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 152,
     "Name": "Lisa",
     "category": "Alternate",
     "trackerKey": "lisa",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 105]
   },
   {
     "id": 153,
     "Name": "Judas",
     "category": "Alternate",
     "trackerKey": "judas",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 154,
     "Name": "Glaggle Gang",
     "category": "Alternate",
     "trackerKey": "glaggle_gang",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 155,
@@ -1106,91 +1106,91 @@
     "Name": "Teuthida",
     "category": "Alternate",
     "trackerKey": "teuthida",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 158,
     "Name": "Eggman\u0027s Announcement",
     "category": "Alternate",
     "trackerKey": "eggmans_announcement",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 159,
     "Name": "S.T.G.M",
     "category": "Alternate",
     "trackerKey": "stgm",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 160,
     "Name": "Army in Black",
     "category": "Alternate",
     "trackerKey": "army_in_black",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 161,
     "Name": "Bliss",
     "category": "Alternate",
     "trackerKey": "bliss",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 162,
     "Name": "Roblander",
     "category": "Alternate",
     "trackerKey": "roblander",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 163,
     "Name": "Fusion Pilot",
     "category": "Alternate",
     "trackerKey": "fusion_pilot",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 164,
     "Name": "Joy",
     "category": "Alternate",
     "trackerKey": "joy",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 165,
     "Name": "The Red Mist",
     "category": "Alternate",
     "trackerKey": "the_red_mist",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 166,
     "Name": "Sakuya The Ripper",
     "category": "Alternate",
     "trackerKey": "sakuya_the_ripper",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52]
   },
   {
     "id": 167,
     "Name": "Walpurgisnacht",
     "category": "Alternate",
     "trackerKey": "walpurgisnacht",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 168,
     "Name": "Azrael",
     "category": "Alternate",
     "trackerKey": "azrael",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 169,
     "Name": "The Restless",
     "category": "Alternate",
     "trackerKey": "the_restless",
-    "appearsInRounds": [50, 51, 52, 53, 105]
+    "appearsInRounds": [50, 51, 52, 53]
   },
   {
     "id": 170,
@@ -1428,7 +1428,7 @@
     "Name": "Wild Yet Bloodthirsty Creature",
     "category": "Icon_Variant_Skip",
     "trackerKey": "wild_yet_bloodthirsty_creature",
-    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50, 105]
+    "appearsInRounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 50]
   },
   {
     "id": 193,
