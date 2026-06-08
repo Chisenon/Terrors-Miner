@@ -37,7 +37,9 @@ async function addVRChatProfile() {
         waitingForMainProcess: false,
         isExistingProcess: true,
         oscInPort: attachResult.in_port ?? null,
-        oscOutPort: attachResult.out_port ?? null
+        oscOutPort: attachResult.out_port ?? null,
+        autoActive: false,
+        autoJumpTimerId: null
       };
 
       if (existingIndex >= 0) {
@@ -67,7 +69,9 @@ async function addVRChatProfile() {
     status: 'stopped',
     processId: null,
     waitingForMainProcess: false,
-    isExistingProcess: false
+    isExistingProcess: false,
+    autoActive: false,
+    autoJumpTimerId: null
   };
 
   vrchatInstances.push(newInstance);
@@ -126,7 +130,7 @@ function createListItem(instance, index) {
     </span>
     <div class="instance-controls">
       <button class="placeholder-button" type="button" disabled title="Start/Stop (placeholder)">Start/Stop</button>
-      <button class="placeholder-button" type="button" disabled title="Auto (placeholder)">Auto</button>
+      <button class="auto-button${instance.autoActive ? ' auto-active' : ''}" onclick="toggleAuto(${index})" ${instance.status !== 'running' ? 'disabled' : ''} title="${instance.autoActive ? 'Automation active' : 'Start automation'}">Auto</button>
       <button class="toggle-button" onclick="toggleInstance(${index})" ${btnDisabled ? 'disabled' : ''} title="${btnTitle}">${btnLabel}</button>
       <button class="setting-button" onclick="openSetting(${index})" title="Setting">&#9881;</button>
     </div>
@@ -155,6 +159,8 @@ async function removeInstance(index) {
       return;
     }
   }
+
+  stopAuto(removedInstance);
 
   try {
     await tauriInvoke('remove_profile_settings', { profile: removedInstance.profile });
@@ -220,6 +226,7 @@ async function closeVRChat(index) {
       instance.status = 'stopped';
       const oldPid = instance.processId;
       instance.processId = null;
+      stopAuto(instance);
       renderList();
       addLogEntry(`${result.message} (PID: ${oldPid})`);
     } else {
@@ -242,6 +249,53 @@ async function openSetting(index) {
   }
 }
 
+async function toggleAuto(index) {
+  const instance = vrchatInstances[index];
+  if (!instance) return;
+
+  if (instance.autoActive) {
+    stopAuto(instance);
+  } else {
+    await startAuto(instance);
+  }
+  renderList();
+}
+
+function stopAuto(instance) {
+  if (instance.autoJumpTimerId !== null) {
+    clearInterval(instance.autoJumpTimerId);
+    instance.autoJumpTimerId = null;
+  }
+  instance.autoActive = false;
+}
+
+async function startAuto(instance) {
+  try {
+    const settings = await tauriInvoke('get_profile_settings', { profile: instance.profile });
+    const uiState = (settings && settings.__ui) || {};
+
+    instance.autoActive = true;
+
+    if (uiState.autoJump) {
+      const seconds = uiState.autoJumpSeconds || 3.0;
+      const ms = Math.max(200, Math.round(seconds * 1000));
+      const profile = instance.profile;
+
+      tauriInvoke('send_osc_jump', { profile }).catch(e => console.error('[Auto] Jump failed:', e));
+      instance.autoJumpTimerId = setInterval(() => {
+        tauriInvoke('send_osc_jump', { profile }).catch(e => console.error('[Auto] Jump failed:', e));
+      }, ms);
+    }
+
+    if (uiState.autoStart) {
+      tauriInvoke('run_osc_auto_start', { profile: instance.profile }).catch(e => console.error('[Auto] Start failed:', e));
+    }
+  } catch (error) {
+    console.error('[Auto] Failed to start automation:', error);
+    instance.autoActive = false;
+  }
+}
+
 function renderList() {
   itemList.innerHTML = '';
   vrchatInstances.forEach((instance, index) => {
@@ -253,6 +307,7 @@ function renderList() {
 window.removeInstance = removeInstance;
 window.toggleInstance = toggleInstance;
 window.openSetting = openSetting;
+window.toggleAuto = toggleAuto;
 
 async function checkRunningProcesses() {
   try {
@@ -276,6 +331,7 @@ async function checkRunningProcesses() {
           instance.status = 'stopped';
           instance.processId = null;
           instance.waitingForMainProcess = false;
+          stopAuto(instance);
           statusChanged = true;
           addLogEntry(`VRChat Profile ${instance.profile} stopped`);
         } else if (instance.processId !== currentPid) {
@@ -305,7 +361,9 @@ async function checkRunningProcesses() {
           status: 'running',
           processId: pid,
           waitingForMainProcess: false,
-          isExistingProcess: false
+          isExistingProcess: false,
+          autoActive: false,
+          autoJumpTimerId: null
         };
         vrchatInstances.push(newInstance);
         statusChanged = true;

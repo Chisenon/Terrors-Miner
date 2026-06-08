@@ -1510,17 +1510,8 @@
         toggleState[key] = isOn === true;
         if (key === 'autoJump') {
           setToggleButtonVisual('toggle-auto-jump', toggleState.autoJump);
-          if (toggleState.autoJump) {
-            startAutoJumpTimer();
-            runAutoJumpOnce();
-          } else {
-            stopAutoJumpTimer();
-          }
         } else if (key === 'autoStart') {
           setToggleButtonVisual('toggle-auto-start', toggleState.autoStart);
-          if (toggleState.autoStart) {
-            runAutoStartOnce();
-          }
         } else if (key === 'dtm') {
           setToggleButtonVisual('toggle-dtm', toggleState.dtm);
         } else if (key === 'macro') {
@@ -1592,11 +1583,6 @@
           jumpInlineLabel.addEventListener('click', (e) => e.stopPropagation());
           jumpInlineLabel.addEventListener('mousedown', (e) => e.stopPropagation());
         }
-
-        setToggleState('autoJump', false);
-        setToggleState('autoStart', false);
-        setToggleState('dtm', false);
-        setToggleState('macro', false);
       }
       function setupClearButton() {
         const clearBtn = document.getElementById('clear-selected-btn');

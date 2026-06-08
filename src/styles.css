@@ -217,6 +217,41 @@ button {
   white-space: nowrap;
 }
 
+.auto-button {
+  height: var(--button-height);
+  width: 66px;
+  padding: 2px 8px;
+  background-color: var(--color-hover);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.auto-button:hover:not(:disabled) {
+  background-color: var(--color-active);
+}
+
+.auto-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auto-button.auto-active {
+  background-color: #2e7d32;
+  color: #eafff2;
+}
+
+.auto-button.auto-active:hover:not(:disabled) {
+  background-color: #1b5e20;
+}
+
 .toggle-button {
   height: var(--button-height);
   /* Fixed size to avoid changing layout when label changes */
