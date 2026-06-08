@@ -1,0 +1,1622 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mining Setting</title>
+    <!-- reuse the main app styles so the look matches the main window -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+  /* Fit container to window and avoid outer scroll; reserve space for scrollbar */
+  *, *::before, *::after { box-sizing: border-box; }
+  /* enforce square corners everywhere */
+  * { border-radius: 0 !important; }
+      html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+      body { background: var(--color-dark); }
+
+      .container { 
+        height: 100vh; 
+        width: 100vw; 
+        box-sizing: border-box; 
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-content { 
+        flex: 1;
+        width: 100%; 
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .list-section { 
+        flex: 1;
+        width: 100%; 
+        display: flex; 
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .title-row {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        flex-shrink: 0;
+        background: var(--color-dark);
+      }
+
+      .section-title {
+        width: 50%;
+        background: #4a5f65;
+        color: var(--color-light);
+        padding: 4px 0;
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-sizing: border-box;
+      }
+
+      #section-title-text {
+        padding: 0 8px;
+      }
+
+      .title-right {
+        width: 50%;
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        box-sizing: border-box;
+      }
+
+      .osc-ports {
+        font-size: 11px;
+        color: #b0c4c4;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #4a5f65;
+        padding: 0 8px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .import-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        background: #2a2a2a;
+        flex-shrink: 0;
+      }
+
+      /* Tab bar - horizontal scrollable */
+      #tab-bar {
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background: #0f0f0f;
+        border-bottom: 1px solid #333;
+        scrollbar-width: thin;
+        width: 100%;
+        max-width: 100%;
+        flex-shrink: 0;
+        box-sizing: border-box;
+      }
+
+      #tab-bar::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      #tab-bar::-webkit-scrollbar-track {
+        background: #0f0f0f;
+      }
+
+      #tab-bar::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 0;
+      }
+
+      .left-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        background: #131313;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      .round-search {
+        flex: 1;
+        min-width: 0;
+        height: 24px;
+        background: #111;
+        color: #ddd;
+        border: 1px solid #444;
+        padding: 0 6px;
+        font-size: 11px;
+      }
+
+      .round-bulk-buttons {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .round-bulk-btn {
+        min-width: 34px;
+        height: 24px;
+        padding: 0 8px;
+        border: 1px solid #555;
+        background: #2a2a2a;
+        color: #ddd;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .round-bulk-btn:hover {
+        background: #3a3a3a;
+        border-color: #6a9fa5;
+        color: #fff;
+      }
+
+      .tab-item {
+        flex-shrink: 0;
+        padding: 6px 12px;
+        background: #2a2a2a;
+        color: #aaa;
+        cursor: pointer;
+        font-size: 12px;
+        border: 1px solid #444;
+        border-bottom: none;
+        white-space: nowrap;
+        user-select: none;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .tab-item:hover {
+        background: #3a3a3a;
+        color: #ddd;
+      }
+
+      .tab-item.active {
+        background: #4a5f65;
+        color: #fff;
+        border-color: #4a5f65;
+      }
+
+      /* Content area */
+      #content-area {
+        flex: 1;
+        background: #0f0f0f;
+        padding: 6px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        color: var(--color-light);
+        font-size: 12px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        min-height: 0;
+      }
+
+      /* Style for dummy checkboxes in content area */
+      #content-area .round-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 2px 0;
+        line-height: 1.2;
+      }
+
+      #content-area input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        margin: 0;
+      }
+
+      #content-area label {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+      }
+
+      #content-area .banned label {
+        text-decoration: line-through;
+        color: #555;
+      }
+
+      #content-area .banned input[type="checkbox"] {
+        opacity: 0.35;
+      }
+
+      .split-container {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .split-left {
+        flex: 1;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .split-right {
+        flex: 1;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        border-left: 1px solid #333;
+      }
+
+      .right-top {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        border-bottom: 1px solid #333;
+      }
+
+      .right-middle {
+        flex-shrink: 0;
+        display: flex;
+        gap: 6px;
+        padding: 8px;
+        border-bottom: 1px solid #333;
+        background: #0f0f0f;
+        align-items: stretch;
+        height: 72px;
+      }
+
+      .action-btn {
+        flex: 1;
+        min-width: 0;
+        padding: 4px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        color: #ccc;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        line-height: 1.3;
+      }
+
+      .action-btn:hover {
+        background: #3a3a3a;
+        border-color: #5a7f85;
+        color: #fff;
+      }
+
+      .toggle-btn.active {
+        background: #1f5a3f;
+        border-color: #2ecc71;
+        color: #eafff2;
+      }
+
+      .jump-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #111;
+        border: 1px solid #444;
+        color: #bbb;
+        padding: 0 4px;
+        font-size: 10px;
+        height: 20px;
+        margin-top: 4px;
+      }
+
+      .jump-inline input {
+        width: 28px;
+        background: #111;
+        color: #ddd;
+        border: none;
+        font-size: 10px;
+        height: 18px;
+        padding: 0 4px;
+        -moz-appearance: textfield;
+      }
+
+      .jump-inline input::-webkit-inner-spin-button,
+      .jump-inline input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .right-section-title {
+        flex-shrink: 0;
+        background: #2a3a3d;
+        color: var(--color-light);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .right-list {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 4px 6px;
+        font-size: 11px;
+        color: #aaa;
+      }
+
+      .right-bottom {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .right-section-title {
+        flex-shrink: 0;
+        background: #2a3a3d;
+        color: var(--color-light);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .right-section-title .clear-btn {
+        font-size: 10px;
+        padding: 1px 6px;
+        cursor: pointer;
+        background: #c0392b;
+        color: #fff;
+        border: none;
+        font-weight: 400;
+      }
+
+      .right-section-title .clear-btn:hover {
+        background: #e74c3c;
+      }
+
+      .right-list {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 4px 6px;
+        font-size: 11px;
+        color: #aaa;
+      }
+
+      .import-label {
+        color: #aaa;
+        font-size: 11px;
+      }
+
+      #import-btn {
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        background: #27ae60;
+        color: #fff;
+        border: none;
+      }
+
+      #import-btn:hover {
+        background: #2ecc71;
+      }
+
+      .log-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background: #1a1a1a;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      .log-label {
+        color: #aaa;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .log-path {
+        flex: 1;
+        min-width: 0;
+        font-size: 11px;
+        color: #888;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .log-btn {
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        background: #5a7f85;
+        color: #fff;
+        border: none;
+        flex-shrink: 0;
+      }
+
+      .log-btn:hover {
+        background: #6a9fa5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="main-content">
+        <div class="list-section">
+          <div class="title-row">
+            <div class="section-title">
+              <span id="section-title-text">Select Round Types And Terrors</span>
+            </div>
+            <div class="title-right">
+              <span id="osc-ports" class="osc-ports"></span>
+              <div class="import-bar">
+                <span class="import-label">Save Data Import</span>
+                <button id="import-btn">Import</button>
+              </div>
+            </div>
+          </div>
+          <div class="log-row">
+            <span class="log-label">VRChat Logs:</span>
+            <span id="log-path-display" class="log-path">Loading...</span>
+            <button id="log-select-btn" class="log-btn">Select Log File</button>
+          </div>
+          <div class="split-container">
+            <div class="split-left">
+              <div id="tab-bar">Loading...</div>
+              <div class="left-controls">
+                <input id="terror-search-input" class="round-search" type="text" placeholder="Search in this round">
+                <div class="round-bulk-buttons">
+                  <button id="round-check-on" class="round-bulk-btn" type="button">ON</button>
+                  <button id="round-check-off" class="round-bulk-btn" type="button">OFF</button>
+                </div>
+              </div>
+              <div id="content-area">Select a round type to view details</div>
+            </div>
+            <div class="split-right">
+              <div class="right-top">
+                <div class="right-section-title">
+                  <span>Selected Terrors</span>
+                  <button class="clear-btn" id="clear-selected-btn">Clear</button>
+                </div>
+                <div id="selected-terrors-list" class="right-list">No terrors selected</div>
+              </div>
+              <div class="right-middle">
+                <button class="action-btn toggle-btn" id="toggle-auto-jump">
+                  Jump
+                  <label class="jump-inline" id="jump-inline-label">
+                    <input id="auto-jump-seconds" type="number" min="0.2" step="0.1" value="3.0">
+                    <span>s</span>
+                  </label>
+                </button>
+                <button class="action-btn toggle-btn" id="toggle-auto-start">Start</button>
+                <button class="action-btn toggle-btn" id="toggle-dtm">DTM</button>
+                <button class="action-btn toggle-btn" id="toggle-macro">Action<br>Macro</button>
+              </div>
+              <div class="right-bottom">
+                <div class="right-section-title">Log Summary</div>
+                <div id="log-summary-content" class="right-list">No data</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      const ROUNDTYPE_PATH = 'assets/Roundtype.json';
+      const TERRORS_PATH = 'assets/terrors.json';
+      const TAB_ORDER = [
+        'Classic',
+        'Alternate',
+        '8 Pages',
+        'Fog',
+        'Ghost',
+        'Punished',
+        'Sabotage',
+        'Bloodbath',
+        'Cracked',
+        'Midnight',
+        'Unbound',
+        'Double Trouble',
+        'EX',
+        'Special'
+      ];
+      const SPECIAL_TAB_CONFIG = {
+        key: 'special',
+        label: 'Special',
+        roundIds: [100, 101, 102, 103, 104, 106, 107],
+        isSpecial: true
+      };
+      const IMPORT_SECTIONS = [
+        'terrors',
+        'alternates',
+        'unbounds',
+        'moons',
+        'specials',
+        'variants_8pages',
+        'variants_misc',
+        'variants_cracked',
+        'variants_midnight'
+      ];
+      const IMPORT_IGNORE_MODES = new Set(['seen', 'variant', 'from_default', 'default', 'locked_variants']);
+      const POSITIVE_STATUS_STRINGS = new Set(['survived', 'survived_ex', 'survived_possessed', 'achieved', 'possessed']);
+      const CATEGORY_TAB_SCOPE = {
+        Classic: new Set(['classic', 'fog', 'punished', 'sabotage', 'cracked', 'bloodbath', 'double trouble', 'ex', 'ghost', 'midnight', '8 pages']),
+        Alternate: new Set(['alternate', 'fog', 'ghost', 'midnight', '8 pages'])
+      };
+      // Which tracker sections/modes map to which round IDs.
+      const sectionConfig = {
+        terrors: {
+          classic: [1],
+          fog: [2],
+          punished: [3],
+          sabotage: [4],
+          cracked: [5],
+          bloodbath: [6, 7, 8],
+          ghost: [9],
+          unbounds: [10],
+          midnight: [50],
+          alternate: [51],
+          alternates: [52, 53],
+          '8pages': [105]
+        },
+        alternates: {
+          alternate: [51],
+          alternates: [52, 53],
+          state: [52, 53],
+          survived: [52, 53],
+          midnight: [50],
+          fog: [52],
+          ghost: [53],
+          '8pages': [105]
+        },
+        unbounds: {
+          state: [10]
+        },
+        moons: {
+          state: [100, 101, 102, 103, 104, 106, 107]
+        },
+        specials: {
+          state: '__use_entry_rounds__'
+        },
+        variants_8pages: {
+          '8pages': [105]
+        },
+        variants_misc: {
+          state: '__use_entry_rounds__'
+        },
+        variants_cracked: {
+          state: [5]
+        },
+        variants_midnight: {
+          state: [50]
+        }
+      };
+      let terrorsData = [];
+      let trackerKeyToTerror = new Map();
+      let terrorIdToTerror = new Map();
+      let replacedByMap = new Map();
+      let profileSettings = {};
+      let activeProfile = null;
+      let tabConfigs = [];
+      let tabConfigByKey = new Map();
+      let initialLoadPromise = null;
+      let roundNameById = new Map();
+      let roundIdByName = new Map();
+      let activeTabKey = null;
+      let tabSearchTerms = new Map();
+      let autoJumpTimerId = null;
+      let autoJumpInFlight = false;
+      let autoStartInFlight = false;
+      let logSummaryTimerId = null;
+      let logSummaryLines = [];
+      let selectedTerrorCounters = new Map();
+      let profileUiState = {};
+      const toggleState = {
+        autoJump: false,
+        autoStart: false,
+        dtm: false,
+        macro: false
+      };
+      function getTabBarElement() {
+        return document.getElementById('tab-bar');
+      }
+      function getContentAreaElement() {
+        return document.getElementById('content-area');
+      }
+      async function fetchJson(path) {
+        const sep = path.includes('?') ? '&' : '?';
+        const url = `${path}${sep}t=${Date.now()}`;
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) {
+          throw new Error(`Failed to load ${path}: HTTP ${resp.status}`);
+        }
+        return resp.json();
+      }
+      async function tauriInvoke(cmd, args = {}) {
+        if (!window.__TAURI__ || !window.__TAURI__.core || !window.__TAURI__.core.invoke) {
+          throw new Error('Tauri invoke is not available');
+        }
+        return window.__TAURI__.core.invoke(cmd, args);
+      }
+      function parseProfileFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const profileValue = Number.parseInt(params.get('profile') || '', 10);
+        if (!Number.isFinite(profileValue) || profileValue <= 0) {
+          return null;
+        }
+        return profileValue;
+      }
+      function sanitizeProfileSettings(raw) {
+        if (!raw || typeof raw !== 'object') return {};
+        const normalized = {};
+        for (const [terrorKey, rounds] of Object.entries(raw)) {
+          if (terrorKey === '__ui') continue;
+          if (!terrorKey || typeof rounds !== 'object' || rounds === null) continue;
+          const mapped = {};
+          for (const [roundId, checked] of Object.entries(rounds)) {
+            mapped[String(roundId)] = checked === true;
+          }
+          normalized[terrorKey] = mapped;
+        }
+        return normalized;
+      }
+      async function loadProfileSettings() {
+        if (activeProfile === null) {
+          profileSettings = {};
+          profileUiState = {};
+          return;
+        }
+        const loaded = await tauriInvoke('get_profile_settings', { profile: activeProfile });
+        profileSettings = sanitizeProfileSettings(loaded);
+        if (loaded && loaded.__ui && typeof loaded.__ui === 'object') {
+          profileUiState = { ...loaded.__ui };
+        } else {
+          profileUiState = {};
+        }
+      }
+      async function persistProfileSettings() {
+        if (activeProfile === null) return;
+        const data = { ...profileSettings };
+        if (Object.keys(profileUiState).length > 0) {
+          data.__ui = { ...profileUiState };
+        }
+        await tauriInvoke('set_profile_settings', { profile: activeProfile, settings: data });
+      }
+      function saveUiState() {
+        const jumpInput = document.getElementById('auto-jump-seconds');
+        profileUiState.autoJump = toggleState.autoJump;
+        profileUiState.autoStart = toggleState.autoStart;
+        profileUiState.dtm = toggleState.dtm;
+        profileUiState.macro = toggleState.macro;
+        profileUiState.autoJumpSeconds = jumpInput ? Number.parseFloat(jumpInput.value) || 3.0 : 3.0;
+        if (selectedTerrorCounters.size > 0) {
+          profileUiState.counters = Object.fromEntries(selectedTerrorCounters);
+        } else {
+          delete profileUiState.counters;
+        }
+      }
+      function restoreUiState() {
+        if (!profileUiState || Object.keys(profileUiState).length === 0) return;
+        if (profileUiState.autoJump !== undefined) {
+          setToggleState('autoJump', profileUiState.autoJump);
+        }
+        if (profileUiState.autoStart !== undefined) {
+          setToggleState('autoStart', profileUiState.autoStart);
+        }
+        if (profileUiState.dtm !== undefined) {
+          setToggleState('dtm', profileUiState.dtm);
+        }
+        if (profileUiState.macro !== undefined) {
+          setToggleState('macro', profileUiState.macro);
+        }
+        if (profileUiState.autoJumpSeconds !== undefined) {
+          const input = document.getElementById('auto-jump-seconds');
+          if (input) {
+            input.value = profileUiState.autoJumpSeconds;
+          }
+        }
+        if (profileUiState.counters && typeof profileUiState.counters === 'object') {
+          for (const [key, count] of Object.entries(profileUiState.counters)) {
+            selectedTerrorCounters.set(key, count);
+          }
+        }
+      }
+      let uiSaveTimerId = null;
+      function scheduleUiSave() {
+        if (uiSaveTimerId !== null) return;
+        uiSaveTimerId = setTimeout(() => {
+          uiSaveTimerId = null;
+          saveUiState();
+          persistProfileSettings();
+        }, 5000);
+      }
+      function stopUiSaveTimer() {
+        if (uiSaveTimerId !== null) {
+          clearTimeout(uiSaveTimerId);
+          uiSaveTimerId = null;
+        }
+      }
+      function isCheckedForTabRounds(terrorKey, roundIds) {
+        if (!terrorKey) return false;
+        const terrorState = profileSettings[terrorKey];
+        if (!terrorState) return false;
+        return roundIds.some((roundId) => terrorState[String(roundId)] === true);
+      }
+      function setCheckedForTabRounds(terrorKey, roundIds, checked) {
+        if (!terrorKey) return;
+        if (!profileSettings[terrorKey]) {
+          profileSettings[terrorKey] = {};
+        }
+        for (const roundId of roundIds) {
+          profileSettings[terrorKey][String(roundId)] = checked === true;
+        }
+      }
+      function normalizeName(name) {
+        return String(name || '').toLowerCase();
+      }
+      function findRoundTypeByName(roundTypes, desiredName) {
+        const normalized = normalizeName(desiredName);
+        const exact = roundTypes.find((item) => normalizeName(item.Name) === normalized);
+        if (exact) return exact;
+        return roundTypes.find((item) => {
+          const current = normalizeName(item.Name);
+          return current.includes(normalized) || normalized.includes(current);
+        });
+      }
+      function createTabConfigFromRound(round, desiredName) {
+        const roundIds = round.ID === 2
+          ? [2, 52]
+          : round.ID === 9
+            ? [9, 53]
+            : [round.ID];
+        return {
+          key: normalizeName(desiredName),
+          label: round.Name,
+          roundIds,
+          roundSet: new Set(roundIds),
+          isSpecial: false
+        };
+      }
+      function buildTabConfigs(roundTypes) {
+        const configs = [];
+        const usedIds = new Set();
+        for (const name of TAB_ORDER) {
+          if (name === 'Special') {
+            configs.push({
+              ...SPECIAL_TAB_CONFIG,
+              roundSet: new Set(SPECIAL_TAB_CONFIG.roundIds)
+            });
+            continue;
+          }
+          const round = findRoundTypeByName(roundTypes, name);
+          if (!round) continue;
+          if (usedIds.has(round.ID)) continue;
+          usedIds.add(round.ID);
+          configs.push(createTabConfigFromRound(round, name));
+        }
+        return configs;
+      }
+      function renderTabBar() {
+        const tabBar = getTabBarElement();
+        tabBar.innerHTML = '';
+        tabConfigByKey = new Map(tabConfigs.map((cfg) => [cfg.key, cfg]));
+        for (const config of tabConfigs) {
+          const tab = document.createElement('div');
+          tab.className = 'tab-item';
+          tab.textContent = config.label;
+          tab.dataset.key = config.key;
+          tab.addEventListener('click', () => selectTabByKey(config.key));
+          tabBar.appendChild(tab);
+        }
+      }
+      function enableTabBarWheelScroll() {
+        const tabBar = getTabBarElement();
+        tabBar.addEventListener('wheel', (e) => {
+          if (e.deltaY !== 0) {
+            e.preventDefault();
+            tabBar.scrollLeft += e.deltaY;
+          }
+        }, { passive: false });
+      }
+      async function loadRoundTypes() {
+        try {
+          const [roundTypes] = await Promise.all([
+            fetchJson(ROUNDTYPE_PATH),
+            loadTerrors()
+          ]);
+          roundNameById = new Map(roundTypes.map(rt => [rt.ID, rt.Name]));
+          roundIdByName = new Map(roundTypes.map(rt => [rt.Name.toLowerCase(), rt.ID]));
+          tabConfigs = buildTabConfigs(roundTypes);
+          renderTabBar();
+          if (tabConfigs.length > 0) {
+            selectTabByKey(tabConfigs[0].key);
+          } else {
+            getTabBarElement().textContent = 'No round types found';
+          }
+        } catch (e) {
+          const tabBar = getTabBarElement();
+          tabBar.textContent = 'Failed to load round types';
+          console.error(e);
+        }
+      }
+      async function loadTerrors() {
+        try {
+          terrorsData = await fetchJson(TERRORS_PATH);
+          trackerKeyToTerror = new Map();
+          terrorIdToTerror = new Map();
+          replacedByMap = new Map();
+          for (const terror of terrorsData) {
+            if (terror.trackerKey) {
+              trackerKeyToTerror.set(terror.trackerKey, terror);
+            }
+            if (Number.isInteger(terror.id)) {
+              terrorIdToTerror.set(terror.id, terror);
+            }
+            if (Array.isArray(terror.legacyTrackerKeys)) {
+              for (const legacyKey of terror.legacyTrackerKeys) {
+                if (typeof legacyKey !== 'string' || legacyKey.length === 0) continue;
+                if (!trackerKeyToTerror.has(legacyKey)) {
+                  trackerKeyToTerror.set(legacyKey, terror);
+                }
+              }
+            }
+            if (!Array.isArray(terror.replaces)) continue;
+            for (const rep of terror.replaces) {
+              if (!replacedByMap.has(rep.baseName)) replacedByMap.set(rep.baseName, []);
+              replacedByMap.get(rep.baseName).push({ replacer: terror, rounds: rep.rounds || [] });
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load data:', e);
+          terrorsData = [];
+          trackerKeyToTerror = new Map();
+          terrorIdToTerror = new Map();
+          replacedByMap = new Map();
+        }
+      }
+      function makeSelectionCounterKey(roundId, terrorId) {
+        return `${roundId}|${terrorId}`;
+      }
+      function getSelectionCounter(roundId, terrorId) {
+        const key = makeSelectionCounterKey(roundId, terrorId);
+        return selectedTerrorCounters.get(key) || 0;
+      }
+      function resetSelectionCounters() {
+        selectedTerrorCounters = new Map();
+      }
+      function parseRoundTypeFromLogMessage(message) {
+        const text = String(message || '');
+        let match = text.match(/RoundType\s+(-?\d+)/i);
+        if (match) {
+          const roundId = Number.parseInt(match[1], 10);
+          if (Number.isFinite(roundId)) return roundId;
+        }
+        match = text.match(/RoundType\s+([^|]+?)\s*(?:\||$)/i);
+        if (match) {
+          const name = match[1].trim().toLowerCase();
+          if (roundIdByName.has(name)) return roundIdByName.get(name);
+        }
+        return null;
+      }
+      function parseKillerIdsFromLogMessage(message) {
+        const text = String(message || '');
+        const ids = [];
+        const matches = text.matchAll(/(?:\(ID\s*(-?\d+)\)|\bID\s*(-?\d+)\b)/gi);
+        for (const match of matches) {
+          const raw = match[1] ?? match[2];
+          const id = Number.parseInt(raw, 10);
+          if (Number.isFinite(id)) {
+            ids.push(id);
+          }
+        }
+        return ids;
+      }
+      function applySelectedCounterFromLogEntry(entry) {
+        if (!entry || typeof entry !== 'object') return false;
+        const kind = String(entry.kind || '');
+        if (kind !== 'killers-set' && kind !== 'killers-revealed' && kind !== 'killers-unknown') {
+          return false;
+        }
+        const roundId = parseRoundTypeFromLogMessage(entry.message || '');
+        if (!Number.isFinite(roundId)) return false;
+        const killerIds = parseKillerIdsFromLogMessage(entry.message || '');
+        if (killerIds.length === 0) return false;
+
+        let changed = false;
+        for (const killerId of killerIds) {
+          const terror = terrorIdToTerror.get(killerId);
+          if (!terror || !terror.trackerKey || !Number.isInteger(terror.id)) continue;
+          const terrorState = profileSettings[terror.trackerKey];
+          if (!terrorState || terrorState[String(roundId)] !== true) continue;
+          const key = makeSelectionCounterKey(roundId, terror.id);
+          selectedTerrorCounters.set(key, (selectedTerrorCounters.get(key) || 0) + 1);
+          changed = true;
+        }
+        return changed;
+      }
+      function isStatusChecked(status) {
+        if (typeof status === 'string') {
+          return !POSITIVE_STATUS_STRINGS.has(status);
+        }
+        if (typeof status === 'object' && status !== null) {
+          const isPositive = status.survived === true
+            || status.survived_ex === true
+            || status.survived_possessed === true
+            || status.achieved === true
+            || status.possessed === true;
+          return !isPositive;
+        }
+        return typeof status === 'boolean' ? !status : true;
+      }
+      function getEntriesToProcess(entryData) {
+        if (typeof entryData === 'string' || typeof entryData === 'boolean') {
+          return [['state', entryData]];
+        }
+        if (typeof entryData === 'object' && entryData !== null) {
+          return Object.entries(entryData);
+        }
+        return [];
+      }
+      function resolveRoundIds(modeMap, mode, terror) {
+        let roundIds = modeMap[mode];
+        if (roundIds === '__use_entry_rounds__') {
+          roundIds = Array.isArray(terror.appearsInRounds) ? terror.appearsInRounds : [];
+        }
+        return Array.isArray(roundIds) ? roundIds : null;
+      }
+      function applyRoundCheck(state, terrorKey, roundId, checked) {
+        if (!terrorKey) return;
+        if (!state[terrorKey]) state[terrorKey] = {};
+        const roundKey = String(roundId);
+        const prev = state[terrorKey][roundKey];
+        // If multiple sections write the same target, keep true if any source is true.
+        if (checked) {
+          state[terrorKey][roundKey] = true;
+        } else if (prev === undefined) {
+          state[terrorKey][roundKey] = false;
+        }
+      }
+      function applyReplacerChecks(state, terror, roundId, checked) {
+        const replacers = replacedByMap.get(terror.Name);
+        if (!replacers) return;
+        for (const rep of replacers) {
+          if (!Array.isArray(rep.rounds) || !rep.rounds.includes(roundId)) continue;
+          applyRoundCheck(state, rep.replacer.trackerKey, roundId, checked);
+        }
+      }
+      function buildImportState(trackerData) {
+        const state = {};
+        for (const section of IMPORT_SECTIONS) {
+          const sectionData = trackerData[section];
+          if (!sectionData) continue;
+          const modeMap = sectionConfig[section];
+          if (!modeMap) continue;
+          for (const [trackerKey, entryData] of Object.entries(sectionData)) {
+            const terror = trackerKeyToTerror.get(trackerKey);
+            if (!terror) continue;
+            for (const [mode, status] of getEntriesToProcess(entryData)) {
+              if (IMPORT_IGNORE_MODES.has(mode)) continue;
+              const roundIds = resolveRoundIds(modeMap, mode, terror);
+              if (!roundIds || roundIds.length === 0) continue;
+              const checked = isStatusChecked(status);
+              for (const roundId of roundIds) {
+                applyRoundCheck(state, terror.trackerKey, roundId, checked);
+                applyReplacerChecks(state, terror, roundId, checked);
+              }
+            }
+          }
+        }
+        return state;
+      }
+      async function gunzipBytes(bytes) {
+        if (typeof DecompressionStream === 'undefined') {
+          throw new Error('DecompressionStream not available');
+        }
+        const ds = new DecompressionStream('gzip');
+        const writer = ds.writable.getWriter();
+        await writer.write(bytes);
+        await writer.close();
+        const reader = ds.readable.getReader();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const merged = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+        return new TextDecoder().decode(merged);
+      }
+      async function decodeImportFile(file) {
+        const text = await file.text();
+        try {
+          // Primary path: decode in Rust for stable behavior across WebView versions.
+          return await tauriInvoke('decode_tracker_import', { encoded: text });
+        } catch (_tauriError) {
+          // Fallback path for non-Tauri preview/debug environments.
+          const normalized = text.replace(/\s+/g, '');
+          const raw = atob(normalized);
+          const numbers = raw.split(',')
+            .map((value) => Number.parseInt(value, 10))
+            .filter((value) => Number.isFinite(value) && value >= 0 && value <= 255);
+          if (numbers.length === 0) {
+            throw new Error('Invalid import format');
+          }
+          const bytes = Uint8Array.from(numbers);
+          const jsonStr = await gunzipBytes(bytes);
+          return JSON.parse(jsonStr);
+        }
+      }
+      async function importFromFile(file) {
+        try {
+          if (initialLoadPromise) {
+            await initialLoadPromise;
+          }
+          const trackerData = await decodeImportFile(file);
+          profileSettings = buildImportState(trackerData);
+          await persistProfileSettings();
+          updateSelectedTerrors();
+          const currentTab = document.querySelector('.tab-item.active');
+          if (currentTab && currentTab.dataset.key) {
+            selectTabByKey(currentTab.dataset.key);
+          } else if (tabConfigs.length > 0) {
+            selectTabByKey(tabConfigs[0].key);
+          }
+        } catch (e) {
+          console.error('Import failed:', e);
+          alert('Import failed: ' + e.message);
+        }
+      }
+      function terrorAppearsInAnyRound(terror, roundSet) {
+        if (!Array.isArray(terror.appearsInRounds)) return false;
+        return terror.appearsInRounds.some((roundId) => roundSet.has(roundId));
+      }
+      function terrorReplacesInAnyRound(terror, roundSet) {
+        if (!Array.isArray(terror.replaces)) return false;
+        return terror.replaces.some((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => roundSet.has(roundId)));
+      }
+      function terrorIsInCategoryTabScope(terror, tabConfig) {
+        const allowedTabs = CATEGORY_TAB_SCOPE[terror.category];
+        if (!allowedTabs) return false;
+        return allowedTabs.has(tabConfig.key);
+      }
+      function terrorActsAsReplacerInTab(terror, tabConfig) {
+        if (tabConfig.isSpecial) return false;
+        return terrorReplacesInAnyRound(terror, tabConfig.roundSet);
+      }
+      function hasValidTerrorShape(terror) {
+        return terror
+          && typeof terror.Name === 'string'
+          && terror.Name.trim().length > 0
+          && (Array.isArray(terror.appearsInRounds) || Array.isArray(terror.replaces));
+      }
+      function getTerrorsForTab(tabConfig) {
+        const { roundSet } = tabConfig;
+        const seenNames = new Set();
+        return terrorsData.filter((terror) => {
+          if (!hasValidTerrorShape(terror)) return false;
+          if (terrorActsAsReplacerInTab(terror, tabConfig)) return false;
+          const appears = terrorAppearsInAnyRound(terror, roundSet);
+          const inCategoryScope = terrorIsInCategoryTabScope(terror, tabConfig);
+          if (!appears && !inCategoryScope) return false;
+          const normalized = normalizeName(terror.Name);
+          if (seenNames.has(normalized)) return false;
+          seenNames.add(normalized);
+          return true;
+        });
+      }
+      function terrorHasRound(terror, roundSet) {
+        if (!Array.isArray(terror.appearsInRounds)) return false;
+        return terror.appearsInRounds.some((roundId) => roundSet.has(roundId));
+      }
+      function getSearchTermForTab(tabKey) {
+        return tabSearchTerms.get(tabKey) || '';
+      }
+      function setSearchTermForTab(tabKey, value) {
+        tabSearchTerms.set(tabKey, String(value || ''));
+      }
+      function getFilteredTerrorsForTab(tabConfig) {
+        const terrors = getTerrorsForTab(tabConfig);
+        const searchTerm = normalizeName(getSearchTermForTab(tabConfig.key)).trim();
+        if (!searchTerm) {
+          return terrors;
+        }
+        return terrors.filter((terror) => normalizeName(terror.Name).includes(searchTerm));
+      }
+      function createTerrorLabel(terror, tabConfig) {
+        let displayName = terror.Name;
+        if (tabConfig.isSpecial) return displayName;
+        const replacers = replacedByMap.get(terror.Name);
+        if (!replacers) return displayName;
+        const names = replacers
+          .filter((rep) => Array.isArray(rep.rounds) && rep.rounds.some((roundId) => tabConfig.roundSet.has(roundId)))
+          .map((rep) => rep.replacer.Name);
+        if (names.length > 0) {
+          displayName += ` (${names.join(', ')})`;
+        }
+        return displayName;
+      }
+      function createTerrorRow(terror, tabConfig) {
+        const hasRound = terrorHasRound(terror, tabConfig.roundSet);
+        const row = document.createElement('div');
+        row.className = 'round-item';
+        if (!hasRound) row.classList.add('banned');
+        const label = document.createElement('label');
+        if (!hasRound) label.style.cursor = 'default';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.trackerKey = terror.trackerKey || '';
+        checkbox.dataset.roundIds = tabConfig.roundIds.join(',');
+        checkbox.dataset.hasRound = hasRound ? '1' : '0';
+        checkbox.checked = hasRound ? isCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds) : false;
+        if (!hasRound) {
+          checkbox.addEventListener('click', (event) => event.preventDefault());
+        } else {
+          checkbox.addEventListener('change', () => {
+            if (!terror.trackerKey) return;
+            setCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds, checkbox.checked);
+            persistProfileSettings().catch((error) => {
+              console.error('Failed to save profile settings:', error);
+            });
+            updateSelectedTerrors();
+          });
+        }
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(` ${createTerrorLabel(terror, tabConfig)}`));
+        row.appendChild(label);
+        return row;
+      }
+      function applySettingsToRenderedCheckboxes() {
+        const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
+        for (const checkbox of checkboxes) {
+          const hasRound = checkbox.dataset.hasRound === '1';
+          if (!hasRound) {
+            checkbox.checked = false;
+            continue;
+          }
+          const trackerKey = checkbox.dataset.trackerKey;
+          const roundIds = String(checkbox.dataset.roundIds || '')
+            .split(',')
+            .map((v) => Number.parseInt(v, 10))
+            .filter((v) => Number.isFinite(v));
+          const terrorState = trackerKey ? profileSettings[trackerKey] : null;
+          checkbox.checked = !!(terrorState && roundIds.some((roundId) => terrorState[String(roundId)] === true));
+        }
+      }
+      function renderTabContent(tabConfig) {
+        const contentArea = getContentAreaElement();
+        contentArea.innerHTML = '';
+        const terrors = getFilteredTerrorsForTab(tabConfig);
+        if (terrors.length === 0) {
+          contentArea.innerHTML = '<p style="color: #888;">No terrors matched in this round.</p>';
+          return;
+        }
+        for (const terror of terrors) {
+          contentArea.appendChild(createTerrorRow(terror, tabConfig));
+        }
+      }
+      function syncRoundSearchInput() {
+        const input = document.getElementById('terror-search-input');
+        if (!input) return;
+        if (!activeTabKey) {
+          input.value = '';
+          input.disabled = true;
+          return;
+        }
+        input.disabled = false;
+        input.value = getSearchTermForTab(activeTabKey);
+      }
+      function selectTabByKey(tabKey) {
+        const tabConfig = tabConfigByKey.get(tabKey);
+        if (!tabConfig) return;
+        activeTabKey = tabKey;
+        document.querySelectorAll('.tab-item').forEach((tab) => {
+          tab.classList.toggle('active', tab.dataset.key === tabKey);
+        });
+        syncRoundSearchInput();
+        renderTabContent(tabConfig);
+        applySettingsToRenderedCheckboxes();
+      }
+      async function setRoundChecks(tabConfig, checked) {
+        if (!tabConfig) return;
+        const terrors = getTerrorsForTab(tabConfig);
+        for (const terror of terrors) {
+          if (!terror || !terror.trackerKey) continue;
+          if (!terrorHasRound(terror, tabConfig.roundSet)) continue;
+          setCheckedForTabRounds(terror.trackerKey, tabConfig.roundIds, checked);
+        }
+        await persistProfileSettings();
+        renderTabContent(tabConfig);
+        applySettingsToRenderedCheckboxes();
+        updateSelectedTerrors();
+      }
+      function setupRoundControls() {
+        const searchInput = document.getElementById('terror-search-input');
+        const onBtn = document.getElementById('round-check-on');
+        const offBtn = document.getElementById('round-check-off');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            if (!activeTabKey) return;
+            setSearchTermForTab(activeTabKey, searchInput.value);
+            const tabConfig = tabConfigByKey.get(activeTabKey);
+            if (!tabConfig) return;
+            renderTabContent(tabConfig);
+            applySettingsToRenderedCheckboxes();
+          });
+        }
+        if (onBtn) {
+          onBtn.addEventListener('click', () => {
+            const tabConfig = activeTabKey ? tabConfigByKey.get(activeTabKey) : null;
+            setRoundChecks(tabConfig, true).catch((e) => console.error('Failed to set round ON:', e));
+          });
+        }
+        if (offBtn) {
+          offBtn.addEventListener('click', () => {
+            const tabConfig = activeTabKey ? tabConfigByKey.get(activeTabKey) : null;
+            setRoundChecks(tabConfig, false).catch((e) => console.error('Failed to set round OFF:', e));
+          });
+        }
+      }
+      function setupImportButton() {
+        const importBtn = document.getElementById('import-btn');
+        if (!importBtn) return;
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        importBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (event) => {
+          const file = event.target.files[0];
+          if (file) {
+            await importFromFile(file);
+          }
+          fileInput.value = '';
+        });
+      }
+      function setupLogSelector() {
+        const selectBtn = document.getElementById('log-select-btn');
+        const pathDisplay = document.getElementById('log-path-display');
+        if (!selectBtn || !pathDisplay) return;
+        pathDisplay.textContent = 'No log file selected';
+        pathDisplay.title = '';
+        selectBtn.addEventListener('click', async () => {
+          try {
+            const selected = await tauriInvoke('pick_vrchat_log_file');
+            if (selected && activeProfile !== null) {
+              const fileName = selected.split('\\').pop() || selected.split('/').pop() || selected;
+              pathDisplay.textContent = fileName;
+              pathDisplay.title = selected;
+              pathDisplay.style.color = '#ccc';
+              await tauriInvoke('set_profile_log_file', { profile: activeProfile, path: selected });
+              clearLogSummary();
+              startLogSummaryPolling();
+            }
+          } catch (e) {
+            console.error('Failed to select log file:', e);
+          }
+        });
+      }
+      async function loadSavedLogFile() {
+        const pathDisplay = document.getElementById('log-path-display');
+        if (!pathDisplay || activeProfile === null) return;
+        try {
+          const savedPath = await tauriInvoke('get_profile_log_file', { profile: activeProfile });
+          const fileName = savedPath.split('\\').pop() || savedPath.split('/').pop() || savedPath;
+          pathDisplay.textContent = fileName;
+          pathDisplay.title = savedPath;
+          pathDisplay.style.color = '#ccc';
+        } catch {
+          pathDisplay.textContent = 'No log file selected';
+          pathDisplay.title = '';
+          pathDisplay.style.color = '#888';
+        }
+      }
+      function renderLogSummary() {
+        const el = document.getElementById('log-summary-content');
+        if (!el) return;
+        if (!logSummaryLines.length) {
+          el.textContent = 'No data';
+          return;
+        }
+        el.innerHTML = logSummaryLines.map((line) => `<div>${line}</div>`).join('');
+        el.scrollTop = el.scrollHeight;
+      }
+      function clearLogSummary() {
+        logSummaryLines = [];
+        renderLogSummary();
+      }
+      async function pollLogSummaryOnce() {
+        if (activeProfile === null) return;
+        try {
+          const entries = await tauriInvoke('poll_profile_log_summary', { profile: activeProfile });
+          if (!Array.isArray(entries) || entries.length === 0) return;
+          let counterChanged = false;
+          for (const entry of entries) {
+            const ts = entry && entry.timestamp ? entry.timestamp : '';
+            const msg = entry && entry.message ? entry.message : '';
+            if (!msg) continue;
+            logSummaryLines.push(`${ts} | ${msg}`);
+            if (applySelectedCounterFromLogEntry(entry)) {
+              counterChanged = true;
+            }
+          }
+          if (logSummaryLines.length > 300) {
+            logSummaryLines = logSummaryLines.slice(logSummaryLines.length - 300);
+          }
+          renderLogSummary();
+          if (counterChanged) {
+            updateSelectedTerrors();
+            scheduleUiSave();
+          }
+        } catch (e) {
+          // log file not set or temporarily unavailable
+        }
+      }
+      function stopLogSummaryPolling() {
+        if (logSummaryTimerId !== null) {
+          clearInterval(logSummaryTimerId);
+          logSummaryTimerId = null;
+        }
+      }
+      function startLogSummaryPolling() {
+        stopLogSummaryPolling();
+        if (activeProfile === null) return;
+        pollLogSummaryOnce();
+        logSummaryTimerId = setInterval(() => {
+          pollLogSummaryOnce();
+        }, 1200);
+      }
+      function updateSelectedTerrors() {
+        const listEl = document.getElementById('selected-terrors-list');
+        if (!listEl) return;
+        const lines = [];
+        for (const terror of terrorsData) {
+          const key = terror.trackerKey;
+          if (!key) continue;
+          const state = profileSettings[key];
+          if (!state) continue;
+          for (const [roundId, checked] of Object.entries(state)) {
+            if (checked) {
+              const numericRoundId = Number(roundId);
+              const appearsInRound = Array.isArray(terror.appearsInRounds)
+                && terror.appearsInRounds.includes(numericRoundId);
+              if (!appearsInRound) {
+                continue;
+              }
+              const name = roundNameById.get(numericRoundId) || roundId;
+              const counter = Number.isInteger(terror.id)
+                ? getSelectionCounter(numericRoundId, terror.id)
+                : 0;
+              lines.push({ round: Number(roundId), text: `${name} - ${terror.Name} [${counter}]` });
+            }
+          }
+        }
+        lines.sort((a, b) => a.round - b.round);
+        if (lines.length === 0) {
+          listEl.textContent = 'No terrors selected';
+          return;
+        }
+        listEl.innerHTML = lines.map(l => `<div>${l.text}</div>`).join('');
+      }
+      async function initializePage() {
+        activeProfile = parseProfileFromQuery();
+        resetSelectionCounters();
+        if (activeProfile !== null) {
+          document.title = `Mining Setting - Profile ${activeProfile}`;
+          const sectionTitle = document.getElementById('section-title-text');
+          if (sectionTitle) {
+            sectionTitle.textContent = `Select Round Types And Terrors (Profile ${activeProfile})`;
+          }
+          const oscPorts = document.getElementById('osc-ports');
+          if (oscPorts) {
+            let inPort = 9000 + activeProfile * 10;
+            let outPort = 9001 + activeProfile * 10;
+            try {
+              const resolvedPorts = await tauriInvoke('get_profile_osc_ports', { profile: activeProfile });
+              if (resolvedPorts && Number.isFinite(resolvedPorts.in_port) && Number.isFinite(resolvedPorts.out_port)) {
+                inPort = resolvedPorts.in_port;
+                outPort = resolvedPorts.out_port;
+              }
+            } catch (_e) {
+              // keep fallback values
+            }
+            oscPorts.textContent = `(OSC in:${inPort} out:${outPort})`;
+          }
+        }
+        await loadSavedLogFile();
+        clearLogSummary();
+        startLogSummaryPolling();
+        await loadProfileSettings();
+        restoreUiState();
+        await loadRoundTypes();
+        updateSelectedTerrors();
+      }
+      function readAutoJumpSeconds() {
+        const input = document.getElementById('auto-jump-seconds');
+        if (!input) return 3;
+        const sec = Number.parseFloat(input.value);
+        if (!Number.isFinite(sec) || sec < 0.2) return 0.2;
+        return sec;
+      }
+      function stopAutoJumpTimer() {
+        if (autoJumpTimerId !== null) {
+          clearInterval(autoJumpTimerId);
+          autoJumpTimerId = null;
+        }
+      }
+      async function runAutoJumpOnce() {
+        if (!toggleState.autoJump) return;
+        if (activeProfile === null) return;
+        if (autoJumpInFlight) return;
+        autoJumpInFlight = true;
+        try {
+          await tauriInvoke('send_osc_jump', { profile: activeProfile });
+        } catch (e) {
+          console.error(`[OSC] Auto jump failed: ${e}`);
+        } finally {
+          autoJumpInFlight = false;
+        }
+      }
+      function startAutoJumpTimer() {
+        stopAutoJumpTimer();
+        if (!toggleState.autoJump) return;
+        const sec = readAutoJumpSeconds();
+        const ms = Math.max(200, Math.round(sec * 1000));
+        autoJumpTimerId = setInterval(() => {
+          runAutoJumpOnce();
+        }, ms);
+      }
+      function setToggleButtonVisual(buttonId, isOn) {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        button.classList.toggle('active', isOn);
+        button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+      }
+      function setToggleState(key, isOn) {
+        toggleState[key] = isOn === true;
+        if (key === 'autoJump') {
+          setToggleButtonVisual('toggle-auto-jump', toggleState.autoJump);
+        } else if (key === 'autoStart') {
+          setToggleButtonVisual('toggle-auto-start', toggleState.autoStart);
+        } else if (key === 'dtm') {
+          setToggleButtonVisual('toggle-dtm', toggleState.dtm);
+        } else if (key === 'macro') {
+          setToggleButtonVisual('toggle-macro', toggleState.macro);
+        }
+      }
+      async function runAutoStartOnce() {
+        if (!toggleState.autoStart) return;
+        if (activeProfile === null) return;
+        if (autoStartInFlight) return;
+        autoStartInFlight = true;
+        try {
+          await tauriInvoke('run_osc_auto_start', { profile: activeProfile });
+        } catch (e) {
+          console.error(`[OSC] Auto start failed: ${e}`);
+        } finally {
+          autoStartInFlight = false;
+          setToggleState('autoStart', false);
+        }
+      }
+      function setupActionToggles() {
+        const autoJumpBtn = document.getElementById('toggle-auto-jump');
+        const autoStartBtn = document.getElementById('toggle-auto-start');
+        const dtmBtn = document.getElementById('toggle-dtm');
+        const macroBtn = document.getElementById('toggle-macro');
+        const jumpSeconds = document.getElementById('auto-jump-seconds');
+
+        if (autoJumpBtn) {
+          autoJumpBtn.addEventListener('click', () => {
+            setToggleState('autoJump', !toggleState.autoJump);
+            saveUiState();
+            persistProfileSettings();
+          });
+        }
+        if (autoStartBtn) {
+          autoStartBtn.addEventListener('click', () => {
+            setToggleState('autoStart', !toggleState.autoStart);
+            saveUiState();
+            persistProfileSettings();
+          });
+        }
+        if (dtmBtn) {
+          dtmBtn.addEventListener('click', () => {
+            setToggleState('dtm', !toggleState.dtm);
+            saveUiState();
+            persistProfileSettings();
+          });
+        }
+        if (macroBtn) {
+          macroBtn.addEventListener('click', () => {
+            setToggleState('macro', !toggleState.macro);
+            saveUiState();
+            persistProfileSettings();
+          });
+        }
+        const jumpInlineLabel = document.getElementById('jump-inline-label');
+        if (jumpSeconds) {
+          jumpSeconds.addEventListener('change', () => {
+            if (toggleState.autoJump) {
+              startAutoJumpTimer();
+            }
+            saveUiState();
+            persistProfileSettings();
+          });
+          jumpSeconds.addEventListener('click', (e) => e.stopPropagation());
+          jumpSeconds.addEventListener('mousedown', (e) => e.stopPropagation());
+        }
+        if (jumpInlineLabel) {
+          jumpInlineLabel.addEventListener('click', (e) => e.stopPropagation());
+          jumpInlineLabel.addEventListener('mousedown', (e) => e.stopPropagation());
+        }
+      }
+      function setupClearButton() {
+        const clearBtn = document.getElementById('clear-selected-btn');
+        if (!clearBtn) return;
+        clearBtn.addEventListener('click', () => {
+          const allKeys = Object.keys(profileSettings);
+          for (const key of allKeys) {
+            profileSettings[key] = {};
+          }
+          resetSelectionCounters();
+          const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
+          for (const cb of checkboxes) {
+            cb.checked = false;
+          }
+          updateSelectedTerrors();
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        enableTabBarWheelScroll();
+        setupRoundControls();
+        setupImportButton();
+        setupClearButton();
+        setupActionToggles();
+        setupLogSelector();
+        initialLoadPromise = initializePage();
+      });
+      window.addEventListener('beforeunload', () => {
+        stopUiSaveTimer();
+        saveUiState();
+        stopAutoJumpTimer();
+        stopLogSummaryPolling();
+        persistProfileSettings();
+      });
+    </script>
+  </body>
+</html>

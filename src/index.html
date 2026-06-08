@@ -10,20 +10,15 @@
 
   <body>
     <div class="container">
-      <div class="top-bar">
-        <input
-          type="text"
-          id="item-input"
-          placeholder="Enter item to add to list"
-        />
-        <button id="add-button">Add</button>
-      </div>
-
-      <ul id="item-list" class="scrollable-list"></ul>
-
-      <div class="bottom-bar">
-        <button id="clear-button">Clear All</button>
-        <span id="item-count">Items：0</span>
+      <div class="main-content">
+        <div class="list-section">
+          <ul id="instance_list" class="scrollable-list"></ul>
+          <div class="list-footer">
+            <button id="add-button" class="add-button">Add</button>
+            <span id="item-count" class="item-count">Items: 0</span>
+          </div>
+        </div>
+        <!-- Log panel removed (console logging only) -->
       </div>
     </div>
   </body>
