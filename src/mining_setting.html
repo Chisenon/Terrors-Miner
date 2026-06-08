@@ -638,6 +638,7 @@
       let logSummaryTimerId = null;
       let logSummaryLines = [];
       let selectedTerrorCounters = new Map();
+      let profileUiState = {};
       const toggleState = {
         autoJump: false,
         autoStart: false,
@@ -677,6 +678,7 @@
         if (!raw || typeof raw !== 'object') return {};
         const normalized = {};
         for (const [terrorKey, rounds] of Object.entries(raw)) {
+          if (terrorKey === '__ui') continue;
           if (!terrorKey || typeof rounds !== 'object' || rounds === null) continue;
           const mapped = {};
           for (const [roundId, checked] of Object.entries(rounds)) {
@@ -689,14 +691,78 @@
       async function loadProfileSettings() {
         if (activeProfile === null) {
           profileSettings = {};
+          profileUiState = {};
           return;
         }
         const loaded = await tauriInvoke('get_profile_settings', { profile: activeProfile });
         profileSettings = sanitizeProfileSettings(loaded);
+        if (loaded && loaded.__ui && typeof loaded.__ui === 'object') {
+          profileUiState = { ...loaded.__ui };
+        } else {
+          profileUiState = {};
+        }
       }
       async function persistProfileSettings() {
         if (activeProfile === null) return;
-        await tauriInvoke('set_profile_settings', { profile: activeProfile, settings: profileSettings });
+        const data = { ...profileSettings };
+        if (Object.keys(profileUiState).length > 0) {
+          data.__ui = { ...profileUiState };
+        }
+        await tauriInvoke('set_profile_settings', { profile: activeProfile, settings: data });
+      }
+      function saveUiState() {
+        const jumpInput = document.getElementById('auto-jump-seconds');
+        profileUiState.autoJump = toggleState.autoJump;
+        profileUiState.autoStart = toggleState.autoStart;
+        profileUiState.dtm = toggleState.dtm;
+        profileUiState.macro = toggleState.macro;
+        profileUiState.autoJumpSeconds = jumpInput ? Number.parseFloat(jumpInput.value) || 3.0 : 3.0;
+        if (selectedTerrorCounters.size > 0) {
+          profileUiState.counters = Object.fromEntries(selectedTerrorCounters);
+        } else {
+          delete profileUiState.counters;
+        }
+      }
+      function restoreUiState() {
+        if (!profileUiState || Object.keys(profileUiState).length === 0) return;
+        if (profileUiState.autoJump !== undefined) {
+          setToggleState('autoJump', profileUiState.autoJump);
+        }
+        if (profileUiState.autoStart !== undefined) {
+          setToggleState('autoStart', profileUiState.autoStart);
+        }
+        if (profileUiState.dtm !== undefined) {
+          setToggleState('dtm', profileUiState.dtm);
+        }
+        if (profileUiState.macro !== undefined) {
+          setToggleState('macro', profileUiState.macro);
+        }
+        if (profileUiState.autoJumpSeconds !== undefined) {
+          const input = document.getElementById('auto-jump-seconds');
+          if (input) {
+            input.value = profileUiState.autoJumpSeconds;
+          }
+        }
+        if (profileUiState.counters && typeof profileUiState.counters === 'object') {
+          for (const [key, count] of Object.entries(profileUiState.counters)) {
+            selectedTerrorCounters.set(key, count);
+          }
+        }
+      }
+      let uiSaveTimerId = null;
+      function scheduleUiSave() {
+        if (uiSaveTimerId !== null) return;
+        uiSaveTimerId = setTimeout(() => {
+          uiSaveTimerId = null;
+          saveUiState();
+          persistProfileSettings();
+        }, 5000);
+      }
+      function stopUiSaveTimer() {
+        if (uiSaveTimerId !== null) {
+          clearTimeout(uiSaveTimerId);
+          uiSaveTimerId = null;
+        }
       }
       function isCheckedForTabRounds(terrorKey, roundIds) {
         if (!terrorKey) return false;
@@ -1314,6 +1380,7 @@
           renderLogSummary();
           if (counterChanged) {
             updateSelectedTerrors();
+            scheduleUiSave();
           }
         } catch (e) {
           // log file not set or temporarily unavailable
@@ -1394,6 +1461,7 @@
         clearLogSummary();
         startLogSummaryPolling();
         await loadProfileSettings();
+        restoreUiState();
         await loadRoundTypes();
         updateSelectedTerrors();
       }
@@ -1483,21 +1551,29 @@
         if (autoJumpBtn) {
           autoJumpBtn.addEventListener('click', () => {
             setToggleState('autoJump', !toggleState.autoJump);
+            saveUiState();
+            persistProfileSettings();
           });
         }
         if (autoStartBtn) {
           autoStartBtn.addEventListener('click', () => {
             setToggleState('autoStart', !toggleState.autoStart);
+            saveUiState();
+            persistProfileSettings();
           });
         }
         if (dtmBtn) {
           dtmBtn.addEventListener('click', () => {
             setToggleState('dtm', !toggleState.dtm);
+            saveUiState();
+            persistProfileSettings();
           });
         }
         if (macroBtn) {
           macroBtn.addEventListener('click', () => {
             setToggleState('macro', !toggleState.macro);
+            saveUiState();
+            persistProfileSettings();
           });
         }
         const jumpInlineLabel = document.getElementById('jump-inline-label');
@@ -1506,6 +1582,8 @@
             if (toggleState.autoJump) {
               startAutoJumpTimer();
             }
+            saveUiState();
+            persistProfileSettings();
           });
           jumpSeconds.addEventListener('click', (e) => e.stopPropagation());
           jumpSeconds.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -1547,8 +1625,11 @@
         initialLoadPromise = initializePage();
       });
       window.addEventListener('beforeunload', () => {
+        stopUiSaveTimer();
+        saveUiState();
         stopAutoJumpTimer();
         stopLogSummaryPolling();
+        persistProfileSettings();
       });
     </script>
   </body>
