@@ -655,6 +655,7 @@
       let tabConfigByKey = new Map();
       let initialLoadPromise = null;
       let roundNameById = new Map();
+      let roundIdByName = new Map();
       let activeTabKey = null;
       let tabSearchTerms = new Map();
       let autoJumpTimerId = null;
@@ -812,6 +813,7 @@
             loadTerrors()
           ]);
           roundNameById = new Map(roundTypes.map(rt => [rt.ID, rt.Name]));
+          roundIdByName = new Map(roundTypes.map(rt => [rt.Name.toLowerCase(), rt.ID]));
           tabConfigs = buildTabConfigs(roundTypes);
           renderTabBar();
           if (tabConfigs.length > 0) {
@@ -872,10 +874,17 @@
       }
       function parseRoundTypeFromLogMessage(message) {
         const text = String(message || '');
-        const match = text.match(/RoundType\s+(-?\d+)/i);
-        if (!match) return null;
-        const roundId = Number.parseInt(match[1], 10);
-        return Number.isFinite(roundId) ? roundId : null;
+        let match = text.match(/RoundType\s+(-?\d+)/i);
+        if (match) {
+          const roundId = Number.parseInt(match[1], 10);
+          if (Number.isFinite(roundId)) return roundId;
+        }
+        match = text.match(/RoundType\s+([^|]+?)\s*(?:\||$)/i);
+        if (match) {
+          const name = match[1].trim().toLowerCase();
+          if (roundIdByName.has(name)) return roundIdByName.get(name);
+        }
+        return null;
       }
       function parseKillerIdsFromLogMessage(message) {
         const text = String(message || '');

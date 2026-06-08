@@ -926,8 +926,13 @@ fn get_profile_log_file(profile: u32) -> Result<String, String> {
     log_files.get(&profile).cloned().ok_or_else(|| "Not set".to_string())
 }
 
+fn strip_utf8_bom(s: &str) -> &str {
+    s.strip_prefix('\u{feff}').unwrap_or(s)
+}
+
 fn load_terror_name_map() -> HashMap<i32, String> {
     fn parse_name_map(content: &str) -> HashMap<i32, String> {
+        let content = strip_utf8_bom(content);
         let mut out = HashMap::new();
         let Ok(json) = serde_json::from_str::<Value>(content) else {
             return out;
@@ -1092,11 +1097,15 @@ fn parse_killer_matrix_line(content: &str) -> Option<(String, String)> {
     let ids_raw = content[start_idx..rt_idx].trim();
     let ids = extract_i32_numbers_from_text(ids_raw);
 
+    // Filter out trailing zeros — non-multi-killer rounds always pad with ID 0.
+    let last_nonzero = ids.iter().rposition(|&id| id != 0).map(|i| i + 1).unwrap_or(0);
+    let ids = &ids[..last_nonzero];
+
     let mapped = if ids.is_empty() {
         "none".to_string()
     } else {
-        ids.into_iter()
-            .map(terror_label_from_id)
+        ids.iter()
+            .map(|&id| terror_label_from_id(id))
             .collect::<Vec<_>>()
             .join(", ")
     };
@@ -1231,10 +1240,10 @@ fn poll_profile_log_summary(profile: u32) -> Result<Vec<LogSummaryEntry>, String
     let file_len = metadata.len();
 
     if state.position > file_len {
-        state.position = 0;
+        state.position = file_len;
     }
-    if state.position == 0 && file_len > 2_000_000 {
-        state.position = file_len.saturating_sub(2_000_000);
+    if state.position == 0 {
+        state.position = file_len;
     }
 
     file.seek(SeekFrom::Start(state.position))
