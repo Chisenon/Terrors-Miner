@@ -26,6 +26,7 @@ static PROFILE_LOG_FILES: Lazy<Mutex<HashMap<u32, String>>> = Lazy::new(|| Mutex
 static PROFILE_LOG_MONITORS: Lazy<Mutex<HashMap<u32, LogMonitorState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_OSC_PORTS: Lazy<Mutex<HashMap<u32, OscPorts>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static TERROR_NAME_BY_ID: Lazy<HashMap<i32, String>> = Lazy::new(load_terror_name_map);
+const EMBEDDED_TERRORS_JSON: &str = include_str!("../../src/assets/terrors.json");
 
 #[derive(Clone, Copy)]
 struct OscPorts {
@@ -315,16 +316,116 @@ async fn send_osc_jump(profile: u32) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+struct OscClickCursorState {
+    prev_x: i32,
+    prev_y: i32,
+    tab_held: bool,
+}
+
+fn tracked_pid_for_profile(profile: u32) -> Option<u32> {
+    let map = VRCHAT_PROCESSES.lock().unwrap();
+    map.get(&profile).copied()
+}
+
+fn prepare_profile_window_for_osc_click(profile: u32) -> Result<Option<OscClickCursorState>, String> {
+    use windows_sys::Win32::Foundation::{POINT, RECT};
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse as km;
+    use windows_sys::Win32::UI::WindowsAndMessaging as wm;
+    use std::mem::{size_of, zeroed};
+
+    let Some(pid) = tracked_pid_for_profile(profile) else {
+        return Ok(None);
+    };
+
+    unsafe {
+        let Some(hwnd) = find_hwnd_by_pid(pid) else {
+            return Ok(None);
+        };
+
+        // If minimized, restore to make sure center coordinates are valid.
+        let mut wp: wm::WINDOWPLACEMENT = zeroed();
+        wp.length = size_of::<wm::WINDOWPLACEMENT>() as u32;
+        if wm::GetWindowPlacement(hwnd, &mut wp) != 0 && wp.showCmd == wm::SW_SHOWMINIMIZED as u32 {
+            wm::ShowWindow(hwnd, wm::SW_RESTORE);
+            thread::sleep(Duration::from_millis(60));
+        }
+
+        let mut prev = POINT { x: 0, y: 0 };
+        if wm::GetCursorPos(&mut prev) == 0 {
+            return Ok(None);
+        }
+
+        let mut rect: RECT = zeroed();
+        if wm::GetWindowRect(hwnd, &mut rect) == 0 {
+            return Ok(None);
+        }
+
+        let center_x = (rect.left + rect.right) / 2;
+        let center_y = (rect.top + rect.bottom) / 2;
+        wm::SetCursorPos(center_x, center_y);
+        thread::sleep(Duration::from_millis(25));
+
+        // Hold TAB briefly while OSC click is sent (desktop mode cursor assist behavior).
+        let mut tab_down: km::INPUT = zeroed();
+        tab_down.r#type = km::INPUT_KEYBOARD;
+        tab_down.Anonymous.ki.wVk = km::VK_TAB;
+        km::SendInput(1, &tab_down, size_of::<km::INPUT>() as i32);
+        thread::sleep(Duration::from_millis(25));
+
+        Ok(Some(OscClickCursorState {
+            prev_x: prev.x,
+            prev_y: prev.y,
+            tab_held: true,
+        }))
+    }
+}
+
+fn finish_profile_window_osc_click(state: Option<OscClickCursorState>) {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse as km;
+    use windows_sys::Win32::UI::WindowsAndMessaging as wm;
+    use std::mem::{size_of, zeroed};
+
+    let Some(state) = state else {
+        return;
+    };
+
+    unsafe {
+        if state.tab_held {
+            let mut tab_up: km::INPUT = zeroed();
+            tab_up.r#type = km::INPUT_KEYBOARD;
+            tab_up.Anonymous.ki.wVk = km::VK_TAB;
+            tab_up.Anonymous.ki.dwFlags = km::KEYEVENTF_KEYUP;
+            km::SendInput(1, &tab_up, size_of::<km::INPUT>() as i32);
+        }
+        wm::SetCursorPos(state.prev_x, state.prev_y);
+    }
+}
+
 async fn send_osc_left_click(profile: u32) -> Result<(), String> {
+    let prep_state = match prepare_profile_window_for_osc_click(profile) {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("[OSC CLICK] prepare failed for profile {}: {}", profile, e);
+            None
+        }
+    };
+
     // Desktop pickup/use is usually right-hand use in OSC.
-    send_osc_int(profile, "/input/UseRight", 1).await?;
-    sleep(Duration::from_millis(50)).await;
-    send_osc_int(profile, "/input/UseRight", 0).await?;
-    // Some interactions are grab-based; pulse grab as fallback.
-    send_osc_int(profile, "/input/GrabRight", 1).await?;
-    sleep(Duration::from_millis(50)).await;
-    send_osc_int(profile, "/input/GrabRight", 0).await?;
-    Ok(())
+    let result = async {
+        send_osc_int(profile, "/input/UseRight", 1).await?;
+        sleep(Duration::from_millis(50)).await;
+        send_osc_int(profile, "/input/UseRight", 0).await?;
+        // Some interactions are grab-based; pulse grab as fallback.
+        send_osc_int(profile, "/input/GrabRight", 1).await?;
+        sleep(Duration::from_millis(50)).await;
+        send_osc_int(profile, "/input/GrabRight", 0).await?;
+        Ok(())
+    }
+    .await;
+
+    finish_profile_window_osc_click(prep_state);
+    result
 }
 
 async fn send_osc_right_click(profile: u32) -> Result<(), String> {
@@ -349,7 +450,7 @@ async fn run_osc_auto_start(profile: u32) -> Result<(), String> {
 
     // Move left for 0.5 seconds.
     send_osc_float(profile, "/input/Horizontal", -1.0).await?;
-    sleep(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(120)).await;
     send_osc_float(profile, "/input/Horizontal", 0.0).await?;
     sleep(Duration::from_millis(80)).await;
 
@@ -826,23 +927,13 @@ fn get_profile_log_file(profile: u32) -> Result<String, String> {
 }
 
 fn load_terror_name_map() -> HashMap<i32, String> {
-    let mut out = HashMap::new();
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let candidates = [
-        cwd.join("../src/assets/terrors.json"),
-        cwd.join("src/assets/terrors.json"),
-        cwd.join("assets/terrors.json"),
-    ];
-
-    for path in candidates {
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let Ok(json) = serde_json::from_str::<Value>(&content) else {
-            continue;
+    fn parse_name_map(content: &str) -> HashMap<i32, String> {
+        let mut out = HashMap::new();
+        let Ok(json) = serde_json::from_str::<Value>(content) else {
+            return out;
         };
         let Some(arr) = json.as_array() else {
-            continue;
+            return out;
         };
         for item in arr {
             let Some(obj) = item.as_object() else {
@@ -862,27 +953,60 @@ fn load_terror_name_map() -> HashMap<i32, String> {
             };
             out.insert(id as i32, name.to_string());
         }
-        if !out.is_empty() {
-            break;
+        out
+    }
+
+    let embedded = parse_name_map(EMBEDDED_TERRORS_JSON);
+    if !embedded.is_empty() {
+        return embedded;
+    }
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let candidates = [
+        cwd.join("../src/assets/terrors.json"),
+        cwd.join("src/assets/terrors.json"),
+        cwd.join("assets/terrors.json"),
+    ];
+
+    for path in candidates {
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let parsed = parse_name_map(&content);
+        if !parsed.is_empty() {
+            return parsed;
         }
     }
-    out
+    HashMap::new()
 }
 
 fn get_timestamp_from_line(line: &str) -> String {
-    if line.len() >= 19 {
-        line[..19].to_string()
+    line.chars().take(19).collect()
+}
+
+fn char_start_byte_index(s: &str, char_offset: usize) -> Option<usize> {
+    if char_offset == 0 {
+        return Some(0);
+    }
+    let mut count = 0usize;
+    for (idx, _) in s.char_indices() {
+        if count == char_offset {
+            return Some(idx);
+        }
+        count += 1;
+    }
+    if count == char_offset {
+        Some(s.len())
     } else {
-        "".to_string()
+        None
     }
 }
 
 fn extract_content_from_log_line(line: &str) -> &str {
-    if line.len() > 34 {
-        &line[34..]
-    } else {
-        line
-    }
+    let Some(start) = char_start_byte_index(line, 34) else {
+        return line;
+    };
+    &line[start..]
 }
 
 fn terror_label_from_id(id: i32) -> String {
@@ -890,9 +1014,34 @@ fn terror_label_from_id(id: i32) -> String {
         return format!("ID {}", id);
     }
     if let Some(name) = TERROR_NAME_BY_ID.get(&id) {
-        return format!("{} ({})", name, id);
+        return format!("{} (ID {})", name, id);
     }
     format!("ID {}", id)
+}
+
+fn extract_i32_numbers_from_text(text: &str) -> Vec<i32> {
+    let mut out = Vec::new();
+    let mut buf = String::new();
+
+    for ch in text.chars() {
+        if ch.is_ascii_digit() || (ch == '-' && buf.is_empty()) {
+            buf.push(ch);
+            continue;
+        }
+        if !buf.is_empty() && buf != "-" {
+            if let Ok(v) = buf.parse::<i32>() {
+                out.push(v);
+            }
+        }
+        buf.clear();
+    }
+
+    if !buf.is_empty() && buf != "-" {
+        if let Ok(v) = buf.parse::<i32>() {
+            out.push(v);
+        }
+    }
+    out
 }
 
 fn parse_map_round_line(content: &str) -> Option<String> {
@@ -941,12 +1090,7 @@ fn parse_killer_matrix_line(content: &str) -> Option<(String, String)> {
     }
     let round_type = content[rt_idx + KILLER_ROUND_TYPE_KEYWORD.len()..].trim();
     let ids_raw = content[start_idx..rt_idx].trim();
-    let mut ids = Vec::new();
-    for token in ids_raw.split_whitespace() {
-        if let Ok(id) = token.parse::<i32>() {
-            ids.push(id);
-        }
-    }
+    let ids = extract_i32_numbers_from_text(ids_raw);
 
     let mapped = if ids.is_empty() {
         "none".to_string()
@@ -972,7 +1116,6 @@ fn parse_log_summary_event(line: &str) -> Option<LogSummaryEntry> {
     const ROUND_MAP_SWAPPED: &str = "Solstice has swapped the map to ";
     const ROUND_IS_SABO: &str = "You are the sussy baka of cringe naenae legend";
     const ROUND_DEATH_MSG_KEYWORD: &str = "[DEATH][";
-    const STAT_HIT: &str = "Hit - ";
 
     let timestamp = get_timestamp_from_line(line);
     let content = extract_content_from_log_line(line).trim();
@@ -1066,15 +1209,6 @@ fn parse_log_summary_event(line: &str) -> Option<LogSummaryEntry> {
             message: format!("Death Log | {}", content),
         });
     }
-    if content.starts_with(STAT_HIT) {
-        let v = content[STAT_HIT.len()..].trim();
-        return Some(LogSummaryEntry {
-            timestamp,
-            kind: "damage".to_string(),
-            message: format!("Damage | {}", v),
-        });
-    }
-
     None
 }
 
@@ -1118,7 +1252,10 @@ fn poll_profile_log_summary(profile: u32) -> Result<Vec<LogSummaryEntry>, String
             break;
         }
         read_bytes = read_bytes.saturating_add(n as u64);
-        if let Some(entry) = parse_log_summary_event(buf.trim_end_matches(['\r', '\n'])) {
+        let parsed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            parse_log_summary_event(buf.trim_end_matches(['\r', '\n']))
+        }));
+        if let Ok(Some(entry)) = parsed {
             out.push(entry);
         }
     }

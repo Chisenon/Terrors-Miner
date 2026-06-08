@@ -647,6 +647,7 @@
       };
       let terrorsData = [];
       let trackerKeyToTerror = new Map();
+      let terrorIdToTerror = new Map();
       let replacedByMap = new Map();
       let profileSettings = {};
       let activeProfile = null;
@@ -661,6 +662,7 @@
       let autoStartInFlight = false;
       let logSummaryTimerId = null;
       let logSummaryLines = [];
+      let selectedTerrorCounters = new Map();
       const toggleState = {
         autoJump: false,
         autoStart: false,
@@ -827,10 +829,14 @@
         try {
           terrorsData = await fetchJson(TERRORS_PATH);
           trackerKeyToTerror = new Map();
+          terrorIdToTerror = new Map();
           replacedByMap = new Map();
           for (const terror of terrorsData) {
             if (terror.trackerKey) {
               trackerKeyToTerror.set(terror.trackerKey, terror);
+            }
+            if (Number.isInteger(terror.id)) {
+              terrorIdToTerror.set(terror.id, terror);
             }
             if (Array.isArray(terror.legacyTrackerKeys)) {
               for (const legacyKey of terror.legacyTrackerKeys) {
@@ -850,8 +856,62 @@
           console.error('Failed to load data:', e);
           terrorsData = [];
           trackerKeyToTerror = new Map();
+          terrorIdToTerror = new Map();
           replacedByMap = new Map();
         }
+      }
+      function makeSelectionCounterKey(roundId, terrorId) {
+        return `${roundId}|${terrorId}`;
+      }
+      function getSelectionCounter(roundId, terrorId) {
+        const key = makeSelectionCounterKey(roundId, terrorId);
+        return selectedTerrorCounters.get(key) || 0;
+      }
+      function resetSelectionCounters() {
+        selectedTerrorCounters = new Map();
+      }
+      function parseRoundTypeFromLogMessage(message) {
+        const text = String(message || '');
+        const match = text.match(/RoundType\s+(-?\d+)/i);
+        if (!match) return null;
+        const roundId = Number.parseInt(match[1], 10);
+        return Number.isFinite(roundId) ? roundId : null;
+      }
+      function parseKillerIdsFromLogMessage(message) {
+        const text = String(message || '');
+        const ids = [];
+        const matches = text.matchAll(/(?:\(ID\s*(-?\d+)\)|\bID\s*(-?\d+)\b)/gi);
+        for (const match of matches) {
+          const raw = match[1] ?? match[2];
+          const id = Number.parseInt(raw, 10);
+          if (Number.isFinite(id)) {
+            ids.push(id);
+          }
+        }
+        return ids;
+      }
+      function applySelectedCounterFromLogEntry(entry) {
+        if (!entry || typeof entry !== 'object') return false;
+        const kind = String(entry.kind || '');
+        if (kind !== 'killers-set' && kind !== 'killers-revealed' && kind !== 'killers-unknown') {
+          return false;
+        }
+        const roundId = parseRoundTypeFromLogMessage(entry.message || '');
+        if (!Number.isFinite(roundId)) return false;
+        const killerIds = parseKillerIdsFromLogMessage(entry.message || '');
+        if (killerIds.length === 0) return false;
+
+        let changed = false;
+        for (const killerId of killerIds) {
+          const terror = terrorIdToTerror.get(killerId);
+          if (!terror || !terror.trackerKey || !Number.isInteger(terror.id)) continue;
+          const terrorState = profileSettings[terror.trackerKey];
+          if (!terrorState || terrorState[String(roundId)] !== true) continue;
+          const key = makeSelectionCounterKey(roundId, terror.id);
+          selectedTerrorCounters.set(key, (selectedTerrorCounters.get(key) || 0) + 1);
+          changed = true;
+        }
+        return changed;
       }
       function isStatusChecked(status) {
         if (typeof status === 'string') {
@@ -1255,16 +1315,23 @@
         try {
           const entries = await tauriInvoke('poll_profile_log_summary', { profile: activeProfile });
           if (!Array.isArray(entries) || entries.length === 0) return;
+          let counterChanged = false;
           for (const entry of entries) {
             const ts = entry && entry.timestamp ? entry.timestamp : '';
             const msg = entry && entry.message ? entry.message : '';
             if (!msg) continue;
             logSummaryLines.push(`${ts} | ${msg}`);
+            if (applySelectedCounterFromLogEntry(entry)) {
+              counterChanged = true;
+            }
           }
           if (logSummaryLines.length > 300) {
             logSummaryLines = logSummaryLines.slice(logSummaryLines.length - 300);
           }
           renderLogSummary();
+          if (counterChanged) {
+            updateSelectedTerrors();
+          }
         } catch (e) {
           // log file not set or temporarily unavailable
         }
@@ -1301,7 +1368,10 @@
                 continue;
               }
               const name = roundNameById.get(numericRoundId) || roundId;
-              lines.push({ round: Number(roundId), text: `${name} - ${terror.Name}` });
+              const counter = Number.isInteger(terror.id)
+                ? getSelectionCounter(numericRoundId, terror.id)
+                : 0;
+              lines.push({ round: Number(roundId), text: `${name} - ${terror.Name} [${counter}]` });
             }
           }
         }
@@ -1314,6 +1384,7 @@
       }
       async function initializePage() {
         activeProfile = parseProfileFromQuery();
+        resetSelectionCounters();
         if (activeProfile !== null) {
           document.title = `Mining Setting - Profile ${activeProfile}`;
           const sectionTitle = document.getElementById('section-title-text');
@@ -1467,6 +1538,7 @@
           for (const key of allKeys) {
             profileSettings[key] = {};
           }
+          resetSelectionCounters();
           const checkboxes = document.querySelectorAll('#content-area input[type="checkbox"]');
           for (const cb of checkboxes) {
             cb.checked = false;
