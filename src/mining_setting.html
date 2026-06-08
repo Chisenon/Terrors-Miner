@@ -659,6 +659,8 @@
       let autoJumpTimerId = null;
       let autoJumpInFlight = false;
       let autoStartInFlight = false;
+      let logSummaryTimerId = null;
+      let logSummaryLines = [];
       const toggleState = {
         autoJump: false,
         autoStart: false,
@@ -1200,7 +1202,7 @@
         const selectBtn = document.getElementById('log-select-btn');
         const pathDisplay = document.getElementById('log-path-display');
         if (!selectBtn || !pathDisplay) return;
-        pathDisplay.textContent = '';
+        pathDisplay.textContent = 'No log file selected';
         pathDisplay.title = '';
         selectBtn.addEventListener('click', async () => {
           try {
@@ -1211,6 +1213,8 @@
               pathDisplay.title = selected;
               pathDisplay.style.color = '#ccc';
               await tauriInvoke('set_profile_log_file', { profile: activeProfile, path: selected });
+              clearLogSummary();
+              startLogSummaryPolling();
             }
           } catch (e) {
             console.error('Failed to select log file:', e);
@@ -1227,8 +1231,57 @@
           pathDisplay.title = savedPath;
           pathDisplay.style.color = '#ccc';
         } catch {
-          // not set yet
+          pathDisplay.textContent = 'No log file selected';
+          pathDisplay.title = '';
+          pathDisplay.style.color = '#888';
         }
+      }
+      function renderLogSummary() {
+        const el = document.getElementById('log-summary-content');
+        if (!el) return;
+        if (!logSummaryLines.length) {
+          el.textContent = 'No data';
+          return;
+        }
+        el.innerHTML = logSummaryLines.map((line) => `<div>${line}</div>`).join('');
+        el.scrollTop = el.scrollHeight;
+      }
+      function clearLogSummary() {
+        logSummaryLines = [];
+        renderLogSummary();
+      }
+      async function pollLogSummaryOnce() {
+        if (activeProfile === null) return;
+        try {
+          const entries = await tauriInvoke('poll_profile_log_summary', { profile: activeProfile });
+          if (!Array.isArray(entries) || entries.length === 0) return;
+          for (const entry of entries) {
+            const ts = entry && entry.timestamp ? entry.timestamp : '';
+            const msg = entry && entry.message ? entry.message : '';
+            if (!msg) continue;
+            logSummaryLines.push(`${ts} | ${msg}`);
+          }
+          if (logSummaryLines.length > 300) {
+            logSummaryLines = logSummaryLines.slice(logSummaryLines.length - 300);
+          }
+          renderLogSummary();
+        } catch (e) {
+          // log file not set or temporarily unavailable
+        }
+      }
+      function stopLogSummaryPolling() {
+        if (logSummaryTimerId !== null) {
+          clearInterval(logSummaryTimerId);
+          logSummaryTimerId = null;
+        }
+      }
+      function startLogSummaryPolling() {
+        stopLogSummaryPolling();
+        if (activeProfile === null) return;
+        pollLogSummaryOnce();
+        logSummaryTimerId = setInterval(() => {
+          pollLogSummaryOnce();
+        }, 1200);
       }
       function updateSelectedTerrors() {
         const listEl = document.getElementById('selected-terrors-list');
@@ -1284,6 +1337,8 @@
           }
         }
         await loadSavedLogFile();
+        clearLogSummary();
+        startLogSummaryPolling();
         await loadProfileSettings();
         await loadRoundTypes();
         updateSelectedTerrors();
@@ -1444,6 +1499,7 @@
       });
       window.addEventListener('beforeunload', () => {
         stopAutoJumpTimer();
+        stopLogSummaryPolling();
       });
     </script>
   </body>

@@ -2,6 +2,9 @@ use std::process::Command;
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::Mutex;
 use std::io::Read;
+use std::fs::File;
+use std::io::{Seek, SeekFrom, BufRead, BufReader};
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::{System, Pid};
@@ -20,7 +23,9 @@ static MISSED_DETECTIONS: Lazy<Mutex<HashMap<u32, u32>>> = Lazy::new(|| Mutex::n
 static STOPPING_PROFILES: Lazy<Mutex<HashSet<u32>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 static PROFILE_SETTINGS: Lazy<Mutex<HashMap<u32, Value>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_LOG_FILES: Lazy<Mutex<HashMap<u32, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static PROFILE_LOG_MONITORS: Lazy<Mutex<HashMap<u32, LogMonitorState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_OSC_PORTS: Lazy<Mutex<HashMap<u32, OscPorts>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static TERROR_NAME_BY_ID: Lazy<HashMap<i32, String>> = Lazy::new(load_terror_name_map);
 
 #[derive(Clone, Copy)]
 struct OscPorts {
@@ -41,6 +46,19 @@ struct AttachExistingResult {
     process_id: Option<u32>,
     in_port: Option<u16>,
     out_port: Option<u16>,
+    message: String,
+}
+
+#[derive(Clone, Default)]
+struct LogMonitorState {
+    path: String,
+    position: u64,
+}
+
+#[derive(Serialize)]
+struct LogSummaryEntry {
+    timestamp: String,
+    kind: String,
     message: String,
 }
 
@@ -723,10 +741,12 @@ pub fn run() {
             get_profile_settings,
             set_profile_settings,
             remove_profile_settings,
+            click_inactive_window,
             get_default_vrchat_log_path,
             pick_vrchat_log_file,
             set_profile_log_file,
-            get_profile_log_file
+            get_profile_log_file,
+            poll_profile_log_summary
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -794,6 +814,8 @@ fn remove_profile_settings(profile: u32) -> Result<(), String> {
 fn set_profile_log_file(profile: u32, path: String) -> Result<(), String> {
     let mut log_files = PROFILE_LOG_FILES.lock().unwrap();
     log_files.insert(profile, path);
+    let mut monitors = PROFILE_LOG_MONITORS.lock().unwrap();
+    monitors.remove(&profile);
     Ok(())
 }
 
@@ -801,6 +823,313 @@ fn set_profile_log_file(profile: u32, path: String) -> Result<(), String> {
 fn get_profile_log_file(profile: u32) -> Result<String, String> {
     let log_files = PROFILE_LOG_FILES.lock().unwrap();
     log_files.get(&profile).cloned().ok_or_else(|| "Not set".to_string())
+}
+
+fn load_terror_name_map() -> HashMap<i32, String> {
+    let mut out = HashMap::new();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let candidates = [
+        cwd.join("../src/assets/terrors.json"),
+        cwd.join("src/assets/terrors.json"),
+        cwd.join("assets/terrors.json"),
+    ];
+
+    for path in candidates {
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(json) = serde_json::from_str::<Value>(&content) else {
+            continue;
+        };
+        let Some(arr) = json.as_array() else {
+            continue;
+        };
+        for item in arr {
+            let Some(obj) = item.as_object() else {
+                continue;
+            };
+            let Some(id_val) = obj.get("id") else {
+                continue;
+            };
+            let Some(name_val) = obj.get("Name") else {
+                continue;
+            };
+            let Some(id) = id_val.as_i64() else {
+                continue;
+            };
+            let Some(name) = name_val.as_str() else {
+                continue;
+            };
+            out.insert(id as i32, name.to_string());
+        }
+        if !out.is_empty() {
+            break;
+        }
+    }
+    out
+}
+
+fn get_timestamp_from_line(line: &str) -> String {
+    if line.len() >= 19 {
+        line[..19].to_string()
+    } else {
+        "".to_string()
+    }
+}
+
+fn extract_content_from_log_line(line: &str) -> &str {
+    if line.len() > 34 {
+        &line[34..]
+    } else {
+        line
+    }
+}
+
+fn terror_label_from_id(id: i32) -> String {
+    if id < 0 || id == 255 {
+        return format!("ID {}", id);
+    }
+    if let Some(name) = TERROR_NAME_BY_ID.get(&id) {
+        return format!("{} ({})", name, id);
+    }
+    format!("ID {}", id)
+}
+
+fn parse_map_round_line(content: &str) -> Option<String> {
+    const ROUND_MAP_LOCATION: &str = "This round is taking place at ";
+    const ROUND_MAP_RTYPE: &str = " and the round type is ";
+    if !content.starts_with(ROUND_MAP_LOCATION) {
+        return None;
+    }
+
+    let map_start = ROUND_MAP_LOCATION.len();
+    let left_paren = content.rfind('(')?;
+    let right_paren = content[left_paren..].find(')')? + left_paren;
+    if left_paren <= map_start || right_paren <= left_paren {
+        return None;
+    }
+
+    let map_name = content[map_start..left_paren].trim();
+    let map_id = content[left_paren + 1..right_paren].trim();
+    let rt_idx = content.find(ROUND_MAP_RTYPE)?;
+    let round_type = content[rt_idx + ROUND_MAP_RTYPE.len()..].trim();
+    Some(format!(
+        "Round Start | {} ({}) | RoundType {}",
+        map_name, map_id, round_type
+    ))
+}
+
+fn parse_killer_matrix_line(content: &str) -> Option<(String, String)> {
+    const KILLER_MATRIX_KEYWORD: &str = "Killers have been set - ";
+    const KILLER_MATRIX_UNKNOWN: &str = "Killers is unknown - ";
+    const KILLER_MATRIX_REVEAL: &str = "Killers have been revealed - ";
+    const KILLER_ROUND_TYPE_KEYWORD: &str = " // Round type is ";
+
+    let (kind, start_idx) = if content.starts_with(KILLER_MATRIX_UNKNOWN) {
+        ("killers-unknown", KILLER_MATRIX_UNKNOWN.len())
+    } else if content.starts_with(KILLER_MATRIX_REVEAL) {
+        ("killers-revealed", KILLER_MATRIX_REVEAL.len())
+    } else if content.starts_with(KILLER_MATRIX_KEYWORD) {
+        ("killers-set", KILLER_MATRIX_KEYWORD.len())
+    } else {
+        return None;
+    };
+
+    let rt_idx = content.find(KILLER_ROUND_TYPE_KEYWORD)?;
+    if rt_idx <= start_idx {
+        return None;
+    }
+    let round_type = content[rt_idx + KILLER_ROUND_TYPE_KEYWORD.len()..].trim();
+    let ids_raw = content[start_idx..rt_idx].trim();
+    let mut ids = Vec::new();
+    for token in ids_raw.split_whitespace() {
+        if let Ok(id) = token.parse::<i32>() {
+            ids.push(id);
+        }
+    }
+
+    let mapped = if ids.is_empty() {
+        "none".to_string()
+    } else {
+        ids.into_iter()
+            .map(terror_label_from_id)
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let msg = format!("Killers | {} | RoundType {} | {}", kind, round_type, mapped);
+    Some((kind.to_string(), msg))
+}
+
+fn parse_log_summary_event(line: &str) -> Option<LogSummaryEntry> {
+    const ROUND_OPTIN_KEYWORD: &str = "opted in";
+    const ROUND_OPTOUT_KEYWORD: &str = "Player respawned";
+    const ROUND_WON_KEYWORD: &str = "Player Won";
+    const ROUND_LOST_KEYWORD: &str = "Player lost,";
+    const ROUND_OVER_KEYWORD: &str = "RoundOver";
+    const ROUND_DEATH_KEYWORD: &str = "You died.";
+    const ROUND_REBORN_KEYWORD: &str = "LOL JK, REBORN!";
+    const ROUND_PAGE_FOUND: &str = "Page Collected - ";
+    const ROUND_MAP_SWAPPED: &str = "Solstice has swapped the map to ";
+    const ROUND_IS_SABO: &str = "You are the sussy baka of cringe naenae legend";
+    const ROUND_DEATH_MSG_KEYWORD: &str = "[DEATH][";
+    const STAT_HIT: &str = "Hit - ";
+
+    let timestamp = get_timestamp_from_line(line);
+    let content = extract_content_from_log_line(line).trim();
+    if content.is_empty() {
+        return None;
+    }
+
+    if let Some(message) = parse_map_round_line(content) {
+        return Some(LogSummaryEntry { timestamp, kind: "round-start".to_string(), message });
+    }
+    if let Some((kind, message)) = parse_killer_matrix_line(content) {
+        return Some(LogSummaryEntry { timestamp, kind, message });
+    }
+
+    if content.starts_with(ROUND_OPTIN_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "opt-in".to_string(),
+            message: "Participation | Opted In".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_OPTOUT_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "opt-out".to_string(),
+            message: "Participation | Respawned / Opted Out".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_DEATH_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "death".to_string(),
+            message: "Round | You died".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_REBORN_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "reborn".to_string(),
+            message: "Round | Reborn".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_WON_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "round-win".to_string(),
+            message: "Round Result | Win".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_LOST_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "round-lost".to_string(),
+            message: "Round Result | Lost".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_OVER_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "round-over".to_string(),
+            message: "Round | RoundOver".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_PAGE_FOUND) {
+        let v = content[ROUND_PAGE_FOUND.len()..].trim();
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "page".to_string(),
+            message: format!("8 Pages | Collected {}", v),
+        });
+    }
+    if content.starts_with(ROUND_MAP_SWAPPED) {
+        let v = content[ROUND_MAP_SWAPPED.len()..].trim();
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "map-swap".to_string(),
+            message: format!("Round | Map swapped to ID {}", v),
+        });
+    }
+    if content.starts_with(ROUND_IS_SABO) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "saboteur".to_string(),
+            message: "Role | Saboteur".to_string(),
+        });
+    }
+    if content.starts_with(ROUND_DEATH_MSG_KEYWORD) {
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "death-msg".to_string(),
+            message: format!("Death Log | {}", content),
+        });
+    }
+    if content.starts_with(STAT_HIT) {
+        let v = content[STAT_HIT.len()..].trim();
+        return Some(LogSummaryEntry {
+            timestamp,
+            kind: "damage".to_string(),
+            message: format!("Damage | {}", v),
+        });
+    }
+
+    None
+}
+
+#[tauri::command]
+fn poll_profile_log_summary(profile: u32) -> Result<Vec<LogSummaryEntry>, String> {
+    let path = {
+        let files = PROFILE_LOG_FILES.lock().unwrap();
+        files.get(&profile).cloned().ok_or_else(|| "Log file is not set".to_string())?
+    };
+
+    let mut states = PROFILE_LOG_MONITORS.lock().unwrap();
+    let state = states.entry(profile).or_default();
+    if state.path != path {
+        state.path = path.clone();
+        state.position = 0;
+    }
+
+    let mut file = File::open(&path).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let metadata = file.metadata().map_err(|e| format!("Failed to read log metadata: {}", e))?;
+    let file_len = metadata.len();
+
+    if state.position > file_len {
+        state.position = 0;
+    }
+    if state.position == 0 && file_len > 2_000_000 {
+        state.position = file_len.saturating_sub(2_000_000);
+    }
+
+    file.seek(SeekFrom::Start(state.position))
+        .map_err(|e| format!("Failed to seek log file: {}", e))?;
+
+    let mut reader = BufReader::new(file);
+    let mut buf = String::new();
+    let mut out = Vec::new();
+    let mut read_bytes: u64 = 0;
+
+    loop {
+        buf.clear();
+        let n = reader.read_line(&mut buf).map_err(|e| format!("Failed to read log file: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        read_bytes = read_bytes.saturating_add(n as u64);
+        if let Some(entry) = parse_log_summary_event(buf.trim_end_matches(['\r', '\n'])) {
+            out.push(entry);
+        }
+    }
+
+    state.position = state.position.saturating_add(read_bytes);
+    if out.len() > 100 {
+        let keep_from = out.len() - 100;
+        Ok(out.split_off(keep_from))
+    } else {
+        Ok(out)
+    }
 }
 
 #[tauri::command]
@@ -832,6 +1161,123 @@ fn decode_tracker_import(encoded: String) -> Result<Value, String> {
         .map_err(|e| format!("JSON parse failed: {e}"))
 }
 
+use std::sync::atomic::AtomicPtr;
+type HWND = *mut std::ffi::c_void;
+static ENUM_HWND: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(std::ptr::null_mut());
+
+unsafe fn find_hwnd_by_pid(pid: u32) -> Option<HWND> {
+    use windows_sys::Win32::UI::WindowsAndMessaging as wm;
+    ENUM_HWND.store(std::ptr::null_mut(), std::sync::atomic::Ordering::SeqCst);
+    extern "system" fn enum_callback(hwnd: HWND, lparam: isize) -> i32 {
+        let target_pid = lparam as u32;
+        let mut actual_pid: u32 = 0;
+        unsafe {
+            windows_sys::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
+                hwnd, &mut actual_pid,
+            );
+        }
+        if actual_pid == target_pid {
+            ENUM_HWND.store(hwnd, std::sync::atomic::Ordering::SeqCst);
+            return 0;
+        }
+        1
+    }
+    wm::EnumWindows(Some(enum_callback), pid as isize);
+    let hwnd = ENUM_HWND.load(std::sync::atomic::Ordering::SeqCst);
+    if !hwnd.is_null() { Some(hwnd) } else { None }
+}
+
+#[tauri::command]
+fn click_inactive_window(pid: u32) -> Result<(), String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging as wm;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse as km;
+    use windows_sys::Win32::Foundation::{POINT, RECT};
+    use std::mem::{zeroed, size_of};
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    unsafe {
+        let hwnd = find_hwnd_by_pid(pid).ok_or_else(|| "Window not found".to_string())?;
+
+        let current_fg = wm::GetForegroundWindow();
+
+        let mut wp: wm::WINDOWPLACEMENT = zeroed();
+        wp.length = size_of::<wm::WINDOWPLACEMENT>() as u32;
+        wm::GetWindowPlacement(hwnd, &mut wp);
+        let was_minimized = wp.showCmd == wm::SW_SHOWMINIMIZED as u32;
+
+        // Restore if minimized.
+        if was_minimized {
+            wm::ShowWindow(hwnd, wm::SW_RESTORE);
+            sleep(Duration::from_millis(50));
+        }
+
+        // Send a short ALT press to satisfy foreground activation rules.
+        let mut alt: km::INPUT = zeroed();
+        alt.r#type = km::INPUT_KEYBOARD;
+        alt.Anonymous.ki.wVk = km::VK_MENU;
+        km::SendInput(1, &alt, size_of::<km::INPUT>() as i32);
+        sleep(Duration::from_millis(10));
+        let mut alt_up: km::INPUT = zeroed();
+        alt_up.r#type = km::INPUT_KEYBOARD;
+        alt_up.Anonymous.ki.wVk = km::VK_MENU;
+        alt_up.Anonymous.ki.dwFlags = km::KEYEVENTF_KEYUP;
+        km::SendInput(1, &alt_up, size_of::<km::INPUT>() as i32);
+        sleep(Duration::from_millis(10));
+
+        // Try to activate reliably and verify foreground ownership.
+        let mut activated = false;
+        for _ in 0..10 {
+            wm::ShowWindow(hwnd, wm::SW_SHOW);
+            wm::BringWindowToTop(hwnd);
+            wm::SetForegroundWindow(hwnd);
+            sleep(Duration::from_millis(30));
+            if wm::GetForegroundWindow() == hwnd {
+                activated = true;
+                break;
+            }
+        }
+        if !activated {
+            return Err("Failed to activate target window".to_string());
+        }
+
+        // Move cursor to window center so click lands on target window.
+        let mut prev_cursor = POINT { x: 0, y: 0 };
+        wm::GetCursorPos(&mut prev_cursor);
+        let mut rect: RECT = zeroed();
+        if wm::GetWindowRect(hwnd, &mut rect) != 0 {
+            let center_x = (rect.left + rect.right) / 2;
+            let center_y = (rect.top + rect.bottom) / 2;
+            wm::SetCursorPos(center_x, center_y);
+            sleep(Duration::from_millis(20));
+        }
+
+        // Click once.
+        let mut down: km::INPUT = zeroed();
+        down.r#type = km::INPUT_MOUSE;
+        down.Anonymous.mi.dwFlags = km::MOUSEEVENTF_LEFTDOWN;
+        km::SendInput(1, &down, size_of::<km::INPUT>() as i32);
+        sleep(Duration::from_millis(20));
+
+        let mut up: km::INPUT = zeroed();
+        up.r#type = km::INPUT_MOUSE;
+        up.Anonymous.mi.dwFlags = km::MOUSEEVENTF_LEFTUP;
+        km::SendInput(1, &up, size_of::<km::INPUT>() as i32);
+        sleep(Duration::from_millis(10));
+        wm::SetCursorPos(prev_cursor.x, prev_cursor.y);
+
+        // Restore previous foreground window.
+        if !current_fg.is_null() && current_fg != hwnd {
+            wm::SetForegroundWindow(current_fg);
+        }
+
+        // Re-minimize only when the target was originally minimized.
+        if was_minimized {
+            wm::ShowWindow(hwnd, wm::SW_MINIMIZE);
+        }
+    }
+    Ok(())
+}
 #[tauri::command]
 async fn pick_vrchat_log_file() -> Result<Option<String>, String> {
     let default_path = get_default_vrchat_log_path_impl()
@@ -845,3 +1291,4 @@ async fn pick_vrchat_log_file() -> Result<Option<String>, String> {
 
     Ok(file.map(|f| f.path().to_string_lossy().to_string()))
 }
+
