@@ -39,7 +39,9 @@ async function addVRChatProfile() {
         oscInPort: attachResult.in_port ?? null,
         oscOutPort: attachResult.out_port ?? null,
         autoActive: false,
-        autoJumpTimerId: null
+        autoJumpTimerId: null,
+        autoStartTimerId: null,
+        autoStartPending: false
       };
 
       if (existingIndex >= 0) {
@@ -71,7 +73,9 @@ async function addVRChatProfile() {
     waitingForMainProcess: false,
     isExistingProcess: false,
     autoActive: false,
-    autoJumpTimerId: null
+    autoJumpTimerId: null,
+    autoStartTimerId: null,
+    autoStartPending: false
   };
 
   vrchatInstances.push(newInstance);
@@ -266,6 +270,7 @@ function stopAuto(instance) {
     clearInterval(instance.autoJumpTimerId);
     instance.autoJumpTimerId = null;
   }
+  stopAutoStartMonitoring(instance);
   instance.autoActive = false;
 }
 
@@ -288,12 +293,41 @@ async function startAuto(instance) {
     }
 
     if (uiState.autoStart) {
-      tauriInvoke('run_osc_auto_start', { profile: instance.profile }).catch(e => console.error('[Auto] Start failed:', e));
+      startAutoStartMonitoring(instance);
     }
   } catch (error) {
     console.error('[Auto] Failed to start automation:', error);
     instance.autoActive = false;
   }
+}
+
+function startAutoStartMonitoring(instance) {
+  stopAutoStartMonitoring(instance);
+  const profile = instance.profile;
+  instance.autoStartTimerId = setInterval(async () => {
+    try {
+      const found = await tauriInvoke('poll_round_over', { profile });
+      if (found && !instance.autoStartPending) {
+        instance.autoStartPending = true;
+        setTimeout(() => {
+          if (instance.autoActive) {
+            tauriInvoke('run_osc_auto_start', { profile }).catch(e => console.error('[Auto] Start failed:', e));
+          }
+          instance.autoStartPending = false;
+        }, 10000);
+      }
+    } catch (e) {
+      // log file not set yet
+    }
+  }, 3000);
+}
+
+function stopAutoStartMonitoring(instance) {
+  if (instance.autoStartTimerId !== null) {
+    clearInterval(instance.autoStartTimerId);
+    instance.autoStartTimerId = null;
+  }
+  instance.autoStartPending = false;
 }
 
 function renderList() {
@@ -363,7 +397,9 @@ async function checkRunningProcesses() {
           waitingForMainProcess: false,
           isExistingProcess: false,
           autoActive: false,
-          autoJumpTimerId: null
+          autoJumpTimerId: null,
+          autoStartTimerId: null,
+          autoStartPending: false
         };
         vrchatInstances.push(newInstance);
         statusChanged = true;
