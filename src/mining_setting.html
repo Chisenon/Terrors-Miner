@@ -408,6 +408,41 @@
         color: #aaa;
       }
 
+      .terror-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 4px;
+        border-bottom: 1px solid #2a2a2a;
+        transition: background 0.15s;
+      }
+      .terror-row:hover {
+        background: #1e1e1e;
+      }
+      .terror-round {
+        min-width: 62px;
+        font-weight: 600;
+        color: #4fc3f7;
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+      .terror-name {
+        flex: 1;
+        color: #ddd;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .terror-count {
+        min-width: 24px;
+        text-align: right;
+        font-family: monospace;
+        font-size: 12px;
+        color: #66bb6a;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
       .import-label {
         color: #aaa;
         font-size: 11px;
@@ -638,6 +673,7 @@
       let logSummaryTimerId = null;
       let logSummaryLines = [];
       let selectedTerrorCounters = new Map();
+      let terrorByName = new Map();
       let profileUiState = {};
       const toggleState = {
         autoJump: false,
@@ -872,6 +908,7 @@
           terrorsData = await fetchJson(TERRORS_PATH);
           trackerKeyToTerror = new Map();
           terrorIdToTerror = new Map();
+          terrorByName = new Map();
           replacedByMap = new Map();
           for (const terror of terrorsData) {
             if (terror.trackerKey) {
@@ -879,6 +916,14 @@
             }
             if (Number.isInteger(terror.id)) {
               terrorIdToTerror.set(terror.id, terror);
+              if (typeof terror.Name === 'string') {
+                const key = normalizeName(terror.Name).trim();
+                if (key) {
+                  const arr = terrorByName.get(key) || [];
+                  arr.push(terror);
+                  terrorByName.set(key, arr);
+                }
+              }
             }
             if (Array.isArray(terror.legacyTrackerKeys)) {
               for (const legacyKey of terror.legacyTrackerKeys) {
@@ -899,6 +944,7 @@
           terrorsData = [];
           trackerKeyToTerror = new Map();
           terrorIdToTerror = new Map();
+          terrorByName = new Map();
           replacedByMap = new Map();
         }
       }
@@ -939,6 +985,19 @@
         }
         return ids;
       }
+      function parseKillerEntriesFromLogMessage(message) {
+        const text = String(message || '');
+        const out = [];
+        const re = /([^|]+?)\s*\(ID\s*(-?\d+)\)/gi;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          const rawName = String(m[1] || '').split('|').pop().trim().replace(/^,+\s*/, '');
+          const id = Number.parseInt(m[2], 10);
+          if (!rawName || !Number.isFinite(id)) continue;
+          out.push({ nameLower: normalizeName(rawName), id });
+        }
+        return out;
+      }
       function applySelectedCounterFromLogEntry(entry) {
         if (!entry || typeof entry !== 'object') return false;
         const kind = String(entry.kind || '');
@@ -947,18 +1006,29 @@
         }
         const roundId = parseRoundTypeFromLogMessage(entry.message || '');
         if (!Number.isFinite(roundId)) return false;
-        const killerIds = parseKillerIdsFromLogMessage(entry.message || '');
-        if (killerIds.length === 0) return false;
+        const killerEntries = parseKillerEntriesFromLogMessage(entry.message || '');
+        if (killerEntries.length === 0) return false;
 
         let changed = false;
-        for (const killerId of killerIds) {
-          const terror = terrorIdToTerror.get(killerId);
-          if (!terror || !terror.trackerKey || !Number.isInteger(terror.id)) continue;
-          const terrorState = profileSettings[terror.trackerKey];
-          if (!terrorState || terrorState[String(roundId)] !== true) continue;
-          const key = makeSelectionCounterKey(roundId, terror.id);
-          selectedTerrorCounters.set(key, (selectedTerrorCounters.get(key) || 0) + 1);
-          changed = true;
+        for (const killer of killerEntries) {
+          const matched = new Map();
+          const byId = terrorIdToTerror.get(killer.id);
+          if (byId && Number.isInteger(byId.id)) matched.set(byId.id, byId);
+          const byName = terrorByName.get(killer.nameLower) || [];
+          for (const terror of byName) {
+            if (Number.isInteger(terror.id)) matched.set(terror.id, terror);
+          }
+
+          for (const terror of matched.values()) {
+            if (!terror || !terror.trackerKey || !Number.isInteger(terror.id)) continue;
+            // Require terror name match in addition to round match.
+            if (normalizeName(terror.Name) !== killer.nameLower) continue;
+            const terrorState = profileSettings[terror.trackerKey];
+            if (!terrorState || terrorState[String(roundId)] !== true) continue;
+            const key = makeSelectionCounterKey(roundId, terror.id);
+            selectedTerrorCounters.set(key, (selectedTerrorCounters.get(key) || 0) + 1);
+            changed = true;
+          }
         }
         return changed;
       }
@@ -1403,7 +1473,7 @@
       function updateSelectedTerrors() {
         const listEl = document.getElementById('selected-terrors-list');
         if (!listEl) return;
-        const lines = [];
+        const rows = [];
         for (const terror of terrorsData) {
           const key = terror.trackerKey;
           if (!key) continue;
@@ -1421,16 +1491,22 @@
               const counter = Number.isInteger(terror.id)
                 ? getSelectionCounter(numericRoundId, terror.id)
                 : 0;
-              lines.push({ round: Number(roundId), text: `${name} - ${terror.Name} [${counter}]` });
+              rows.push({ round: Number(roundId), roundName: name, terrorName: terror.Name, terrorId: terror.id, counter });
             }
           }
         }
-        lines.sort((a, b) => a.round - b.round);
-        if (lines.length === 0) {
+        rows.sort((a, b) => a.round - b.round);
+        if (rows.length === 0) {
           listEl.textContent = 'No terrors selected';
           return;
         }
-        listEl.innerHTML = lines.map(l => `<div>${l.text}</div>`).join('');
+        listEl.innerHTML = rows.map(r =>
+          `<div class="terror-row">` +
+            `<span class="terror-round">${r.roundName}</span>` +
+            `<span class="terror-name">${r.terrorName}</span>` +
+            `<span class="terror-count" data-raw="${r.counter}">${r.counter}</span>` +
+          `</div>`
+        ).join('');
       }
       async function initializePage() {
         activeProfile = parseProfileFromQuery();

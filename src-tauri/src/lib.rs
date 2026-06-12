@@ -25,8 +25,10 @@ static PROFILE_SETTINGS: Lazy<Mutex<HashMap<u32, Value>>> = Lazy::new(|| Mutex::
 static PROFILE_LOG_FILES: Lazy<Mutex<HashMap<u32, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_LOG_MONITORS: Lazy<Mutex<HashMap<u32, LogMonitorState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static PROFILE_OSC_PORTS: Lazy<Mutex<HashMap<u32, OscPorts>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static PROFILE_ROUND_OVER_MONITORS: Lazy<Mutex<HashMap<u32, LogMonitorState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static TERROR_NAME_BY_ID: Lazy<HashMap<i32, String>> = Lazy::new(load_terror_name_map);
 const EMBEDDED_TERRORS_JSON: &str = include_str!("../../src/assets/terrors.json");
+const ROUND_OVER_KEYWORD: &str = "RoundOver";
 
 #[derive(Clone, Copy)]
 struct OscPorts {
@@ -163,6 +165,8 @@ fn clear_profile_settings(profile: u32) {
     log_files.remove(&profile);
     let mut osc_ports = PROFILE_OSC_PORTS.lock().unwrap();
     osc_ports.remove(&profile);
+    let mut round_monitors = PROFILE_ROUND_OVER_MONITORS.lock().unwrap();
+    round_monitors.remove(&profile);
 }
 
 struct StopGuard {
@@ -847,7 +851,8 @@ pub fn run() {
             pick_vrchat_log_file,
             set_profile_log_file,
             get_profile_log_file,
-            poll_profile_log_summary
+            poll_profile_log_summary,
+            poll_round_over
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1118,7 +1123,7 @@ fn parse_log_summary_event(line: &str) -> Option<LogSummaryEntry> {
     const ROUND_OPTOUT_KEYWORD: &str = "Player respawned";
     const ROUND_WON_KEYWORD: &str = "Player Won";
     const ROUND_LOST_KEYWORD: &str = "Player lost,";
-    const ROUND_OVER_KEYWORD: &str = "RoundOver";
+
     const ROUND_DEATH_KEYWORD: &str = "You died.";
     const ROUND_REBORN_KEYWORD: &str = "LOL JK, REBORN!";
     const ROUND_PAGE_FOUND: &str = "Page Collected - ";
@@ -1276,6 +1281,59 @@ fn poll_profile_log_summary(profile: u32) -> Result<Vec<LogSummaryEntry>, String
     } else {
         Ok(out)
     }
+}
+
+#[tauri::command]
+fn poll_round_over(profile: u32) -> Result<bool, String> {
+    let path = {
+        let files = PROFILE_LOG_FILES.lock().unwrap();
+        files.get(&profile).cloned().ok_or_else(|| "Log file is not set".to_string())?
+    };
+
+    let mut states = PROFILE_ROUND_OVER_MONITORS.lock().unwrap();
+    let state = states.entry(profile).or_insert_with(|| LogMonitorState {
+        path: String::new(),
+        position: 0,
+    });
+    if state.path != path {
+        state.path = path.clone();
+        state.position = 0;
+    }
+
+    let mut file = File::open(&path).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let metadata = file.metadata().map_err(|e| format!("Failed to read log metadata: {}", e))?;
+    let file_len = metadata.len();
+
+    if state.position > file_len {
+        state.position = file_len;
+    }
+    if state.position == 0 {
+        state.position = file_len;
+    }
+
+    file.seek(SeekFrom::Start(state.position))
+        .map_err(|e| format!("Failed to seek log file: {}", e))?;
+
+    let mut reader = BufReader::new(file);
+    let mut buf = String::new();
+    let mut found = false;
+    let mut read_bytes: u64 = 0;
+
+    loop {
+        buf.clear();
+        let n = reader.read_line(&mut buf).map_err(|e| format!("Failed to read log file: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        read_bytes = read_bytes.saturating_add(n as u64);
+        let content = extract_content_from_log_line(buf.trim_end_matches(['\r', '\n'])).trim();
+        if content.starts_with(ROUND_OVER_KEYWORD) {
+            found = true;
+        }
+    }
+
+    state.position = state.position.saturating_add(read_bytes);
+    Ok(found)
 }
 
 #[tauri::command]
